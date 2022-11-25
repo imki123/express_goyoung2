@@ -13,7 +13,7 @@ const urls = {
 }
 
 app.get(urls.root, (req: Request, res: Response, next: NextFunction) => {
-  res.send('welcome!')
+  res.send(urls)
 })
 app.use(cookieParser())
 app.use(urls.memo, memoRouter)
