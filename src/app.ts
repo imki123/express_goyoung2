@@ -39,18 +39,18 @@ app.use(urls.memo, memoRouter)
 mongoose
   .connect(process.env.MONGO_DB_URI || '')
   .then(() => {
-    console.log('### DB successfuly connected ###')
+    console.log('### DB connection success ###')
   })
   .catch((err) => {
-    console.log('### DB connect Fail:', err)
+    console.log('!!! DB connection fail !!! :', err)
   })
 
 // app 실행
 app.listen(process.env.PORT || '4001', () => {
   console.log(`
-  ################################################
-  🛡️ Server listening on port: ${process.env.PORT || 4001} 🛡️
-  ################################################
+#######################################
+🐈 Server listening on port: ${process.env.PORT || 4001} 🐈
+#######################################
 `)
 })
 
