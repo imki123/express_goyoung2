@@ -14,9 +14,10 @@ memoRouter.get(urls.root, (req, res) => {
   res.send(urls)
 })
 
-memoRouter.get(urls.login, (req, res) => {
+memoRouter.post(urls.login, (req, res) => {
   console.log(expire)
-  res.cookie('go-cookie', '1234', {
+  console.log('>>> req:', req.body)
+  res.cookie('go-cookie', process.env.PORT || '4001', {
     expires: cookieExpire(), // 365일
   })
   res.send({ name: 'hoodie' })

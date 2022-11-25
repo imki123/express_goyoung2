@@ -3,9 +3,16 @@ import cookieParser from 'cookie-parser'
 import memoRouter from './router/memo/memo'
 import dotenv from 'dotenv'
 import axios from 'axios'
+import cors from 'cors'
 
 dotenv.config()
 const app = express()
+
+var corsOptions = {
+  origin: ['http://localhost:4000', 'https://imki123.github.io'],
+}
+app.use(cors(corsOptions))
+app.use(cookieParser())
 
 const urls = {
   root: '/',
@@ -15,15 +22,15 @@ const urls = {
 app.get(urls.root, (req: Request, res: Response, next: NextFunction) => {
   res.send(urls)
 })
-app.use(cookieParser())
+
 app.use(urls.memo, memoRouter)
 
 // console.log('>> secret:', process.env.GOOGLE_SECRET)
 
-app.listen('1234', () => {
+app.listen(process.env.PORT || '4001', () => {
   console.log(`
   ################################################
-  🛡️ Server listening on port: 1234 🛡️
+  🛡️ Server listening on port: ${process.env.PORT || 4001} 🛡️
   ################################################
 `)
 })
