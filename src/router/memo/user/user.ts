@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken'
 import { cookieExpire } from '../../../util/util'
 import { MemoUserModel } from '../../../model/user'
 import mongoose from 'mongoose'
+import { cookies } from '../../../cookies'
 
 const userRouter = Router()
 
@@ -35,7 +36,7 @@ userRouter.post(urls.login, async (req, res) => {
         sub: decoded.sub,
       }
       const signed = jwt.sign(user, secret)
-      res.cookie('go_memo_session', signed, {
+      res.cookie(cookies.go_memo_session, signed, {
         expires: cookieExpire(), // 365일
       })
 
@@ -69,6 +70,12 @@ userRouter.post(urls.login, async (req, res) => {
     console.error(err)
     res.status(500).send(err)
   }
+})
+
+// 로그아웃
+userRouter.post(urls.logout, async (req, res) => {
+  res.clearCookie(cookies.go_memo_session)
+  res.send(true)
 })
 
 // 로그인여부 체크. memoMiddleware에서 req.body에 decodedUser 추가해줌
