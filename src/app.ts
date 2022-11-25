@@ -4,6 +4,7 @@ import memoRouter from './router/memo/memo'
 import dotenv from 'dotenv'
 import axios from 'axios'
 import cors from 'cors'
+import bodyParser from 'body-parser'
 
 dotenv.config()
 const app = express()
@@ -13,6 +14,7 @@ var corsOptions = {
 }
 app.use(cors(corsOptions))
 app.use(cookieParser())
+app.use(bodyParser.json())
 
 const urls = {
   root: '/',
