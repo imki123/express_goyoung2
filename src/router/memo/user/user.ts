@@ -9,6 +9,7 @@ const userRouter = Router()
 const urls = {
   root: '/',
   login: '/login',
+  register: '/register',
 }
 
 userRouter.get(urls.root, (req, res) => {
@@ -25,8 +26,7 @@ userRouter.post(urls.login, (req, res) => {
 
     // decoded로 signed 만들고 쿠키로 등록
     const signed = jwt.sign(decoded, secret)
-    console.log('>>> decoded:', decoded)
-    res.cookie('go-memo-session', signed, {
+    res.cookie('go_memo_session', signed, {
       expires: cookieExpire(), // 365일
     })
 

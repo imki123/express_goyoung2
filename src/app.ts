@@ -5,16 +5,25 @@ import dotenv from 'dotenv'
 import axios from 'axios'
 import cors from 'cors'
 import bodyParser from 'body-parser'
+import mongoose from 'mongoose'
+import { sessionCheck } from './middleware/memoMiddleware'
 
 dotenv.config()
-const app = express()
+export const app = express()
 
 var corsOptions = {
   origin: ['http://localhost:4000', 'https://imki123.github.io'],
+  credentials: true,
 }
 app.use(cors(corsOptions))
 app.use(cookieParser())
 app.use(bodyParser.json())
+
+// memo middleWare 등록
+app.use(/^\/memo/, (req, res, next) => {
+  sessionCheck(req, res)
+  next()
+})
 
 const urls = {
   root: '/',
@@ -24,11 +33,19 @@ const urls = {
 app.get(urls.root, (req: Request, res: Response, next: NextFunction) => {
   res.send(urls)
 })
-
 app.use(urls.memo, memoRouter)
 
-// console.log('>> secret:', process.env.GOOGLE_SECRET)
+// DB 연결
+mongoose
+  .connect(process.env.MONGO_DB_URI || '')
+  .then(() => {
+    console.log('### DB successfuly connected ###')
+  })
+  .catch((err) => {
+    console.log('### DB connect Fail:', err)
+  })
 
+// app 실행
 app.listen(process.env.PORT || '4001', () => {
   console.log(`
   ################################################
