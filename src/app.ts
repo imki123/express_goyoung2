@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express'
 import cookieParser from 'cookie-parser'
 import memoRouter from './router/memo/memo'
 import dotenv from 'dotenv'
+import axios from 'axios'
 
 dotenv.config()
 const app = express()
@@ -26,3 +27,8 @@ app.listen('1234', () => {
   ################################################
 `)
 })
+
+// render sleep 방지
+setInterval(function () {
+  axios.get(process.env.BE_URL || '')
+}, 1000 * 60 * 10) //10분
