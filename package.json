@@ -4,9 +4,10 @@
   "description": "express backend",
   "main": "index.js",
   "scripts": {
-    "start": "node dist/app.js",
     "build": "tsc -p .",
-    "dev": "nodemon --exec ts-node src/app.ts"
+    "start": "NODE_ENV=production node dist/app.js",
+    "dev": "nodemon --exec ts-node src/app.ts",
+    "production": "npm run build && npm run start"
   },
   "author": "goyoung2",
   "license": "ISC",
@@ -38,6 +39,7 @@
     "dayjs": "^1.11.6",
     "dotenv": "^16.0.3",
     "jsonwebtoken": "^8.5.1",
-    "mongoose": "^6.7.3"
+    "mongoose": "^6.7.3",
+    "win-node-env": "^0.6.1"
   }
 }

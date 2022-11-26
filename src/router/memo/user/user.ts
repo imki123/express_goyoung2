@@ -2,10 +2,9 @@ import { Router } from 'express'
 
 import dayjs from 'dayjs'
 import jwt from 'jsonwebtoken'
-import { cookieExpire } from '../../../util/util'
 import { MemoUserModel } from '../../../model/user'
 import mongoose from 'mongoose'
-import { cookies } from '../../../cookies'
+import { cookieKeys, cookieOptions } from '../../../cookie'
 
 const userRouter = Router()
 
@@ -36,9 +35,7 @@ userRouter.post(urls.login, async (req, res) => {
         sub: decoded.sub,
       }
       const signed = jwt.sign(user, secret)
-      res.cookie(cookies.go_memo_session, signed, {
-        expires: cookieExpire(), // 365일
-      })
+      res.cookie(cookieKeys.go_memo_session, signed, cookieOptions())
 
       // 이메일, sub(id)로 유저 조회하고, 없으면 새로 save()
       const search = await MemoUserModel.findOne({
@@ -74,7 +71,7 @@ userRouter.post(urls.login, async (req, res) => {
 
 // 로그아웃
 userRouter.post(urls.logout, async (req, res) => {
-  res.clearCookie(cookies.go_memo_session)
+  res.clearCookie(cookieKeys.go_memo_session)
   res.send(true)
 })
 

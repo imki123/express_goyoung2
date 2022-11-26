@@ -1,6 +1,5 @@
 import { Router } from 'express'
 import dayjs from 'dayjs'
-import { cookieExpire } from '../../util/util'
 import jwt from 'jsonwebtoken'
 import userRouter from './user/user'
 
