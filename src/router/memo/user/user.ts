@@ -71,7 +71,7 @@ userRouter.post(urls.login, async (req, res) => {
 
 // 로그아웃
 userRouter.post(urls.logout, async (req, res) => {
-  res.clearCookie(cookieKeys.go_memo_session)
+  res.clearCookie(cookieKeys.go_memo_session, cookieOptions())
   res.send(true)
 })
 
