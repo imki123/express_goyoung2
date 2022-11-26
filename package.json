@@ -39,7 +39,6 @@
     "dayjs": "^1.11.6",
     "dotenv": "^16.0.3",
     "jsonwebtoken": "^8.5.1",
-    "mongoose": "^6.7.3",
-    "win-node-env": "^0.6.1"
+    "mongoose": "^6.7.3"
   }
 }
