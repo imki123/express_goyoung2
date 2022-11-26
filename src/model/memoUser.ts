@@ -7,4 +7,5 @@ export const MemoUserSchema = new mongoose.Schema({
   picture: String,
 })
 
+// collection name: memousers
 export const MemoUserModel = mongoose.model('memoUser', MemoUserSchema)

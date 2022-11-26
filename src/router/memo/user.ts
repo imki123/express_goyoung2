@@ -1,10 +1,9 @@
 import { Router } from 'express'
-
 import dayjs from 'dayjs'
 import jwt from 'jsonwebtoken'
-import { MemoUserModel } from '../../../model/user'
+import { MemoUserModel } from '../../model/memoUser'
 import mongoose from 'mongoose'
-import { cookieKeys, cookieOptions } from '../../../cookie'
+import { cookieKeys, cookieOptions } from '../../cookie'
 
 const userRouter = Router()
 
@@ -46,14 +45,17 @@ userRouter.post(urls.login, async (req, res) => {
       if (search) {
         // picture 바꼈으면 업데이트
         if (search.picture !== user.picture) {
-          await MemoUserModel.findOneAndUpdate(
+          const updated = await MemoUserModel.findOneAndUpdate(
             { email: user.email, sub: user.sub },
             {
               picture: user.picture,
-            }
+            },
+            { new: true }
           )
+          res.send(updated)
+        } else {
+          res.send(search)
         }
-        res.send(search)
       } else {
         const User = new MemoUserModel(user)
         const newUser = await User.save() // 새로운 유저 저장
