@@ -27,7 +27,6 @@ userRouter.post(urls.login, async (req, res) => {
     if (token) {
       // google login jwt decoded(암호화 안되어있음)
       const decoded = jwt.decode(token) as jwt.JwtPayload
-      // console.log('>>> decoded', decoded)
       // decoded로 signed 만들고 쿠키로 등록
       const user = {
         name: decoded.name,
@@ -35,6 +34,7 @@ userRouter.post(urls.login, async (req, res) => {
         picture: decoded.picture,
         sub: decoded.sub,
       }
+      console.log(`### decoded:, ${user.name}, ${user.email}`)
       const signed = jwt.sign(user, secret)
       res.cookie(cookieKeys.go_memo_session, signed, cookieOptions())
 
