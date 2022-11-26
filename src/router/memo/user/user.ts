@@ -22,6 +22,7 @@ userRouter.get(urls.root, (req, res) => {
 userRouter.post(urls.login, async (req, res) => {
   const token = req.body.credential
   const secret = process.env.GOOGLE_SECRET || ''
+  console.log(`### ${req.ip}, ${req.url}, ${token}`)
   try {
     if (token) {
       // google login jwt decoded(암호화 안되어있음)
