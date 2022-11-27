@@ -87,7 +87,10 @@ memosRouter.patch(urls.root, async (req, res) => {
             email,
             sub,
           },
-          { text: memo.text, editedAt: dayjs().format('YYYY-MM-DDTHH:mm:ss') },
+          {
+            text: memo.text,
+            editedAt: memo.editedAt,
+          },
           {
             new: true,
           }
