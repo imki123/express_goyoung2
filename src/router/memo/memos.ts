@@ -107,9 +107,24 @@ memosRouter.patch(urls.root, async (req, res) => {
   }
 })
 
-memosRouter.delete(urls.root, (req, res) => {
+memosRouter.delete(urls.memoId, async (req, res) => {
   try {
-    res.send(urls)
+    const { email, sub } = req.body.decodedUser || {}
+    const { memoId } = req.params
+    if (email && sub) {
+      if (memoId) {
+        const deletedMemoId = await MemoMemoModel.findOneAndDelete({
+          memoId: memoId,
+          email,
+          sub,
+        })
+        res.send(deletedMemoId)
+      } else {
+        res.status(500).send('no memoId')
+      }
+    } else {
+      res.status(403).send('no session')
+    }
   } catch (err) {
     res.status(500).send(err)
   }
