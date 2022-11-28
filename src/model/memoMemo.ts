@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 
+
 export const MemoMemoSchema = new mongoose.Schema({
   memoId: { type: Number, required: true },
   email: { type: String, required: true },

@@ -1,6 +1,8 @@
 import { Request, Response } from 'express'
-import { app } from '../app'
 import jwt from 'jsonwebtoken'
+
+import { app } from '../app'
+
 
 export const sessionCheck = (req: Request, res: Response) => {
   const secret = process.env.GOOGLE_SECRET || ''
