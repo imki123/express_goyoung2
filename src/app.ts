@@ -8,8 +8,7 @@ import express, { NextFunction, Request, Response } from 'express'
 import mongoose from 'mongoose'
 
 import { sessionCheck } from './middleware/memoMiddleware'
-import memoRouter from './router/memo/memo'
-
+import memoRouter from './router/memo'
 
 dotenv.config()
 export const app = express()
