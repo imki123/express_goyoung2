@@ -24,4 +24,7 @@ export const cookieOptions = (option?: CookieOptions): CookieOptions => ({
 
 // 쿠키 생성 기본 365일, GMT+9시간
 export const cookieExpire = (day = 365) =>
-  dayjs().add(day, 'day').add(9, 'hour').toDate()
+  dayjs()
+    .add(day, 'day')
+    .add(process.env.NODE_ENV === 'production' ? 9 : 0, 'hour')
+    .toDate()

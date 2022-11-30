@@ -53,7 +53,9 @@ memosRouter.post(urls.root, async (req, res) => {
       )
       const lastMemoId = lastMemo?.memoId || 0
       // 한국시간 GMT+9
-      const now = dayjs().add(9, 'hour').format('YYYY-MM-DDTHH:mm:ss')
+      const now = dayjs()
+        .add(process.env.NODE_ENV === 'production' ? 9 : 0, 'hour')
+        .format('YYYY-MM-DDTHH:mm:ss')
       const newMemo = new MemoMemoModel({
         memoId: lastMemoId + 1,
         email: email,
