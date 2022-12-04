@@ -52,7 +52,7 @@ app.listen(process.env.PORT || '4001', () => {
   console.log(`
 #######################################
 🐈 Server listening on port: ${process.env.PORT || 4001} 🐈
-ENV: ${process.env.NODE_ENV}
+NODE_ENV: ${process.env.NODE_ENV}
 #######################################
 `)
 })
