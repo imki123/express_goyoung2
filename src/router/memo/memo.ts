@@ -78,7 +78,7 @@ memosRouter.patch(urls.root, async (req, res) => {
   try {
     const { email, sub } = req.body.decodedUser || {}
     const { memo } = req.body
-    console.log('>>> patchMemo:', memo)
+    // console.log('>>> patchMemo:', memo)
     if (email && sub) {
       if (memo) {
         const updatedMemo = await MemoMemoModel.findOneAndUpdate(

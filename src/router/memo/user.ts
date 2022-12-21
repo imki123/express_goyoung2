@@ -20,7 +20,7 @@ userRouter.get(urls.root, (req, res) => {
 userRouter.post(urls.login, async (req, res) => {
   const token = req.body.credential
   const secret = process.env.GOOGLE_SECRET || ''
-  console.log(`### ${req.ip}, ${req.url}, ${token}`)
+  console.info(`### ${req.ip}, ${req.url}, ${token}`)
   try {
     if (token) {
       // google login jwt decoded(암호화 안되어있음)
@@ -32,7 +32,7 @@ userRouter.post(urls.login, async (req, res) => {
         picture: decoded.picture,
         sub: decoded.sub,
       }
-      console.log(`### decoded:, ${user.name}, ${user.email}`)
+      console.info(`### decoded:, ${user.name}, ${user.email}`)
       const signed = jwt.sign(user, secret)
       res.cookie(cookieKeys.go_memo_session, signed, cookieOptions())
 
@@ -58,7 +58,7 @@ userRouter.post(urls.login, async (req, res) => {
       } else {
         const User = new MemoUserModel(user)
         const newUser = await User.save() // 새로운 유저 저장
-        console.log('>>> newUser:', newUser)
+        console.info('>>> newUser:', newUser)
         // user 정보 FE로 전송
         res.send(user)
       }

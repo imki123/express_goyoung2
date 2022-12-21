@@ -3,7 +3,6 @@ import jwt from 'jsonwebtoken'
 
 import { app } from '../app'
 
-
 export const sessionCheck = (req: Request, res: Response) => {
   const secret = process.env.GOOGLE_SECRET || ''
   // 세션 있는 경우 체크
@@ -19,7 +18,7 @@ export const sessionCheck = (req: Request, res: Response) => {
           ...req.body,
           decodedUser: user,
         }
-        console.log(
+        console.info(
           `### session: ${user.name}, ${user.email}, ${req.ip}, ${req.url}`
         )
       }
@@ -28,6 +27,6 @@ export const sessionCheck = (req: Request, res: Response) => {
   ${err}`)
     }
   } else {
-    console.log(`### No session: ${req.ip}, ${req.url}`)
+    console.info(`### No session: ${req.ip}, ${req.url}`)
   }
 }
