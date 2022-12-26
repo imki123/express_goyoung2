@@ -8,7 +8,7 @@ BE_URL=
 ALLOWED_EMAIL_FOR_ACCOUNT_BOOK=
 JWT_SECRET=
 
-# blog_back
+# blog_back (미사용)
 CAT_API_KEY=
 GOOGLE_API_KEY=
 MONGO_URI=

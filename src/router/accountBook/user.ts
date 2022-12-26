@@ -12,11 +12,11 @@ const urls = {
 }
 
 const checkEmail = (email: string) => {
-  const allowedEmails =
-    process.env.ALLOWED_EMAIL_FOR_ACCOUNT_BOOK?.split(',') || []
+  const allowedEmails = process.env.ALLOWED_EMAIL_FOR_ACCOUNT_BOOK?.split(',')
+  console.info('## allowedEmails:', allowedEmails)
   console.info('## checkEmail:', email)
 
-  return allowedEmails.includes(email)
+  return allowedEmails?.includes(email)
 }
 
 // 유저정보로 로그인
