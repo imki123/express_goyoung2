@@ -1,14 +1,15 @@
 import { Request } from 'express'
 import jwt from 'jsonwebtoken'
 
-export const sessionCheck = (req: Request) => {
-  const secret = process.env.GOOGLE_SECRET || ''
+export const accountBookSessionCheck = async (req: Request) => {
+  // 액세스 토큰 있는지 체크
+  const token = req.cookies.account_book_access_token
   // 세션 있는 경우 체크
-  if (req.cookies.go_memo_session) {
+  if (token) {
     try {
       const user = jwt.verify(
-        req.cookies.go_memo_session,
-        secret
+        token,
+        process.env.JWT_SECRET || ''
       ) as jwt.JwtPayload
 
       if (user && user.email) {
@@ -17,7 +18,7 @@ export const sessionCheck = (req: Request) => {
           decodedUser: user,
         }
         console.info(
-          `### session: ${user.name}, ${user.email}, ${req.ip}, ${req.url}`
+          `### session: ${user.username}, ${user.email}, ${req.ip}, ${req.url}`
         )
       }
     } catch (err) {

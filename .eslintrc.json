@@ -14,7 +14,6 @@
   },
   "rules": {
     "no-unused-vars": "warn",
-    "no-console": ["warn", { "allow": ["info", "error"] }],
-    "sort-imports": "warn"
+    "no-console": ["warn", { "allow": ["info", "error"] }]
   }
 }

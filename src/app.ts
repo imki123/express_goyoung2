@@ -8,6 +8,8 @@ import dotenv from 'dotenv'
 import memoRouter from './router/memo'
 import mongoose from 'mongoose'
 import { sessionCheck } from './middleware/memoMiddleware'
+import accountBookRouter from './router/accountBook'
+import { accountBookSessionCheck } from './middleware/accountBookMiddleware'
 
 dotenv.config()
 export const app = express()
@@ -22,19 +24,25 @@ app.use(bodyParser.json())
 
 // memo middleWare 등록
 app.use(/^\/memo/, (req, res, next) => {
-  sessionCheck(req, res)
+  sessionCheck(req)
+  next()
+})
+app.use(/^\/accountBook/, (req, res, next) => {
+  accountBookSessionCheck(req)
   next()
 })
 
 const urls = {
   root: '/',
   memo: '/memo',
+  accountBook: '/accountBook',
 }
 
 app.get(urls.root, (req: Request, res: Response) => {
   res.send(urls)
 })
 app.use(urls.memo, memoRouter)
+app.use(urls.accountBook, accountBookRouter)
 
 // DB 연결
 mongoose
