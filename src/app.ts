@@ -65,7 +65,9 @@ NODE_ENV: ${process.env.NODE_ENV}
 })
 
 // render sleep 방지
-setInterval(function () {
-  console.info('*** Prevent to sleep *** ')
-  axios.get(process.env.BE_URL || '')
-}, 1000 * 60 * 10) //10분
+if (process.env.NODE_ENV === 'production') {
+  setInterval(function () {
+    console.info('*** Prevent to sleep *** ')
+    axios.get(process.env.BE_URL || '')
+  }, 1000 * 60 * 10) //10분
+}
