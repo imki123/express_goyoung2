@@ -10,12 +10,17 @@ import mongoose from 'mongoose'
 import { sessionCheck } from './middleware/memoMiddleware'
 import accountBookRouter from './router/accountBook'
 import { accountBookSessionCheck } from './middleware/accountBookMiddleware'
+import { catbookRouter } from './router/catbook'
 
 dotenv.config()
 export const app = express()
 
 const corsOptions = {
-  origin: ['http://localhost:4000', 'https://imki123.github.io'],
+  origin: [
+    'http://localhost:4000',
+    'http://localhost:19006',
+    'https://imki123.github.io',
+  ],
   credentials: true,
 }
 app.use(cors(corsOptions))
@@ -36,6 +41,7 @@ const urls = {
   root: '/',
   memo: '/memo',
   accountBook: '/accountBook',
+  catbook: '/catbook',
 }
 
 app.get(urls.root, (req: Request, res: Response) => {
@@ -43,6 +49,7 @@ app.get(urls.root, (req: Request, res: Response) => {
 })
 app.use(urls.memo, memoRouter)
 app.use(urls.accountBook, accountBookRouter)
+app.use(urls.catbook, catbookRouter)
 
 // DB 연결
 mongoose
