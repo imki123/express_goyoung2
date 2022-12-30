@@ -19,7 +19,7 @@ catbookRouter.get(urls.getAnimal, (req, res) => {
       res.send(result.data)
     })
     .catch((e) => {
-      console.error(e)
-      res.status(500).send(e)
+      console.error('error:', url, e?.message ? e.message : e)
+      res.status(500).send('fail:' + url)
     })
 })
