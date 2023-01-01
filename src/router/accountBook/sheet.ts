@@ -43,9 +43,9 @@ sheetRouter.post('/', async (req, res) => {
     //sheetId 생성
     let sheetId = 1
     let order = 1
-    const sheets = await Sheet.find().sort({ sheetId: 1 })
+    const sheets = await Sheet.find().sort({ sheetId: -1 })
     if (sheets.length > 0) {
-      sheetId = sheets[sheets.length - 1].sheetId || 1 + 1
+      sheetId = (sheets[0].sheetId || 1) + 1
       order = sheetId
     }
     const sheet = new Sheet({
@@ -54,8 +54,8 @@ sheetRouter.post('/', async (req, res) => {
       order: order,
       table: [],
     })
-    await sheet.save()
-    res.send(true)
+    const newSheet = await sheet.save()
+    res.send(newSheet)
   } catch (e) {
     res.status(500).send(e)
   }
