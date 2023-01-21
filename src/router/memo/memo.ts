@@ -7,7 +7,20 @@ const memosRouter = Router()
 const urls = {
   root: '/',
   memoId: '/:memoId',
+  allIds: '/allIds',
 }
+
+// 모든 메모 id 불러오기
+memosRouter.get(urls.allIds, async (req, res) => {
+  try {
+    const allIds = await MemoMemoModel.find({}, 'memoId', {
+      sort: { memoId: 1 }, // 오름차순
+    })
+    res.send(allIds)
+  } catch (err) {
+    res.status(500).send(err)
+  }
+})
 
 // email, sub로 목록 전체 불러오기
 memosRouter.get(urls.root, async (req, res) => {
