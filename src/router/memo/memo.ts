@@ -45,7 +45,8 @@ memosRouter.get(urls.memoId, async (req, res) => {
     const { memoId } = req.params
     if (email && sub && memoId) {
       const memo = await MemoMemoModel.findOne({ email, sub, memoId })
-      res.send(memo)
+      if (memo) res.send(memo)
+      else res.status(400).send(false)
     } else {
       res.status(403).send('no session')
     }
