@@ -5,7 +5,8 @@ mongoDB, render와 연동합니다.
 
 ## How to run
 
-```
-npm i
-npm run dev
+```bash
+npm i -g pnpm
+pnpm i
+pnpm dev
 ```
