@@ -34,6 +34,7 @@ userRouter.post(urls.login, async (req, res) => {
       }
       console.info(`### decoded:, ${user.name}, ${user.email}`)
       const signed = jwt.sign(user, secret)
+      console.info('# setCookie cookieOptions:', cookieOptions())
       res.cookie(cookieKeys.go_memo_session, signed, cookieOptions())
 
       // 이메일, sub(id)로 유저 조회하고, 없으면 새로 save()

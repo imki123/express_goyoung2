@@ -11,19 +11,17 @@ declare module 'express' {
   }
 }
 
-const setCookieSecure = (): CookieOptions => {
+const defaultCookieOption: CookieOptions = {
   // 예전에는 secure 옵션이 https에서만 됐었는데... 이제 로컬에서도 잘된다?
-  return {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'none',
-    partitioned: true,
-  }
+  httpOnly: true,
+  secure: true,
+  sameSite: 'none',
+  partitioned: true,
 }
 
 export const cookieOptions = (option?: CookieOptions): CookieOptions => ({
   expires: cookieExpire(),
-  ...setCookieSecure(),
+  ...defaultCookieOption,
   ...option,
 })
 
