@@ -7,7 +7,7 @@
     "build": "tsc -p .",
     "start": "cross-env NODE_ENV=production node dist/app.js",
     "dev": "cross-env NODE_ENV=dev nodemon --exec ts-node src/app.ts",
-    "production": "rm -rf dist && pnpm i && pnpm build && pnpm start"
+    "production": "rm -rf dist node_modules && pnpm i && pnpm build && pnpm start"
   },
   "author": "goyoung2",
   "license": "ISC",
