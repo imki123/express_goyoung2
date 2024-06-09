@@ -58,10 +58,11 @@ userRouter.post(urls.logout, async (req, res) => {
   try {
     if (req.body?.decodedUser) {
       console.info('Logout!', req.body?.decodedUser.email)
-      res.cookie('account_book_access_token', '', cookieOptions())
+      res.clearCookie('account_book_access_token', cookieOptions())
       res.send(true)
     } else {
       console.info('Logout Fail!')
+      res.clearCookie('account_book_access_token', cookieOptions())
       res.status(403).send(false)
     }
   } catch (e) {
