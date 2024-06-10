@@ -3,12 +3,13 @@ import jwt from 'jsonwebtoken'
 
 export const accountBookSessionCheck = async (req: Request) => {
   // 액세스 토큰 있는지 체크
-  const token = req.cookies.account_book_access_token
+  const session = req.headers.authorization?.replace('Bearer ', '')
+
   // 세션 있는 경우 체크
-  if (token) {
+  if (session) {
     try {
       const user = jwt.verify(
-        token,
+        session,
         process.env.JWT_SECRET || ''
       ) as jwt.JwtPayload
 
@@ -16,6 +17,7 @@ export const accountBookSessionCheck = async (req: Request) => {
         req.body = {
           ...req.body,
           decodedUser: user,
+          session,
         }
         console.info(
           `### session: ${user.username}, ${user.email}, ${req.ip}, ${req.url}`

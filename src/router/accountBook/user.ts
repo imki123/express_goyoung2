@@ -1,36 +1,36 @@
 import { Router } from 'express'
-import { cookieOptions } from '../../cookie'
 import jwt from 'jsonwebtoken'
+import { cookieOptions } from '../../cookie'
+import { ACCOUNT_BOOK_ACCESS_TOKEN } from './constants'
 
 const userRouter = Router()
 
 const urls = {
   root: '/',
+  login: '/login',
+  checkSession: '/checkSession',
   logout: '/logout',
-  checkEmail: '/checkEmail', // 로그인
-  checkToken: '/checkToken', // 쿠키 체크
 }
 
-const checkEmail = (email: string) => {
+const isAuthorizedEmail = (email: string) => {
   const allowedEmails = process.env.ALLOWED_EMAIL_FOR_ACCOUNT_BOOK?.split(',')
   console.info('## allowedEmails:', allowedEmails)
-  console.info('## checkEmail:', email)
+  console.info('## isAuthorizedEmail:', email)
 
   return allowedEmails?.includes(email)
 }
 
 // 유저정보로 로그인
-userRouter.post(urls.checkEmail, async (req, res) => {
+userRouter.post(urls.login, async (req, res) => {
   try {
     const user = req.body
     // 이메일 체크
-    if (checkEmail(user.email)) {
-      const token = jwt.sign(
+    if (isAuthorizedEmail(user.email)) {
+      const session = jwt.sign(
         user,
         process.env.JWT_SECRET || '' //JWT 암호
       )
-      res.cookie('account_book_access_token', token, cookieOptions())
-      res.send({ token, user }) // jwt 토큰 FE에 보내기
+      res.send({ session, user }) // jwt 토큰 FE에 보내기
     } else {
       res.send('email error')
     }
@@ -41,10 +41,11 @@ userRouter.post(urls.checkEmail, async (req, res) => {
 })
 
 // 토큰 이메일 체크 (300일 이하면 미들웨어에서 토큰 재발급)
-userRouter.post(urls.checkToken, async (req, res) => {
+userRouter.post(urls.checkSession, async (req, res) => {
   try {
-    if (req.body?.decodedUser) res.send(req.cookies.account_book_access_token)
-    else {
+    if (req.body?.decodedUser) {
+      res.send(req.body.session)
+    } else {
       console.error('/checkToken: No Token!!')
       res.send(false)
     }
@@ -53,17 +54,18 @@ userRouter.post(urls.checkToken, async (req, res) => {
   }
 })
 
-// 로그아웃 BE쿠키 제거
+const sessionBlacklist: string[] = []
+
+// 로그아웃 세션만료
 userRouter.post(urls.logout, async (req, res) => {
   try {
-    if (req.body?.decodedUser) {
-      console.info('Logout!', req.body?.decodedUser.email)
-      res.clearCookie('account_book_access_token', cookieOptions())
+    if (req.body?.session && !sessionBlacklist.includes(req.body.session)) {
+      sessionBlacklist.push(req.body.session)
+      // 쿠키 삭제. deprecated
+      res.clearCookie(ACCOUNT_BOOK_ACCESS_TOKEN, cookieOptions())
       res.send(true)
     } else {
-      console.info('Logout Fail!')
-      res.clearCookie('account_book_access_token', cookieOptions())
-      res.status(403).send(false)
+      res.send(false)
     }
   } catch (e) {
     console.info('Logout Fail!')
