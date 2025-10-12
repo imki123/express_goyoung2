@@ -32,12 +32,23 @@ app.use(bodyParser.json())
 
 // memo middleWare 등록
 app.use(/^\/memo/, async (req, res, next) => {
-  await sessionCheck(req)
-  next()
+  try {
+    await sessionCheck(req)
+    next()
+  } catch (error) {
+    console.error('[memoMiddleware] Error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
 })
-app.use(/^\/accountBook/, (req, res, next) => {
-  accountBookSessionCheck(req)
-  next()
+
+app.use(/^\/accountBook/, async (req, res, next) => {
+  try {
+    await accountBookSessionCheck(req)
+    next()
+  } catch (error) {
+    console.error('[accountBookMiddleware] Error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
 })
 
 const urls = {
@@ -53,6 +64,23 @@ app.get(urls.root, (req: Request, res: Response) => {
 app.use(urls.memo, memoRouter)
 app.use(urls.accountBook, accountBookRouter)
 app.use(urls.catbook, catbookRouter)
+
+// 전역 에러 핸들러
+app.use((error: Error, req: Request, res: Response) => {
+  console.error('[GlobalErrorHandler] Unhandled error:', error)
+  res.status(500).json({
+    error: 'Internal server error',
+    message:
+      process.env.NODE_ENV === 'development'
+        ? error.message
+        : 'Something went wrong',
+  })
+})
+
+// 404 핸들러
+app.use('*', (req: Request, res: Response) => {
+  res.status(404).json({ error: 'Route not found' })
+})
 
 // DB 연결 재시도 로직
 const connectDBWithRetry = async (retryCount = 0, maxRetries = 10) => {
@@ -89,7 +117,7 @@ connectDBWithRetry()
 
 // DB 연결 상태 모니터링
 mongoose.connection.on('disconnected', () => {
-  console.warn(
+  console.error(
     '[dbDisconnected] MongoDB disconnected. Attempting to reconnect...'
   )
   connectDBWithRetry()
@@ -97,6 +125,17 @@ mongoose.connection.on('disconnected', () => {
 
 mongoose.connection.on('error', (err) => {
   console.error('[dbError] MongoDB connection error:', err)
+})
+
+// 프로세스 에러 핸들러
+process.on('uncaughtException', (error: Error) => {
+  console.error('[UncaughtException] Fatal error:', error)
+  // 서버를 종료하지 않고 로그만 남기고 계속 실행
+})
+
+process.on('unhandledRejection', (reason: unknown) => {
+  console.error('[UnhandledRejection] Unhandled promise rejection:', reason)
+  // 서버를 종료하지 않고 로그만 남기고 계속 실행
 })
 
 // app 실행
@@ -111,7 +150,9 @@ NODE_ENV: ${process.env.NODE_ENV}
 // render sleep 방지
 if (process.env.NODE_ENV === 'production') {
   setInterval(function () {
-    console.info('*** Prevent to sleep *** ')
-    axios.get(process.env.BE_URL || '')
+    // Prevent to sleep
+    axios.get(process.env.BE_URL || '').catch((error) => {
+      console.error('[SleepPrevention] Error:', error)
+    })
   }, 1000 * 60 * 10) //10분
 }
