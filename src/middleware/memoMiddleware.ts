@@ -22,62 +22,53 @@ export const sessionCheck = async (req: Request) => {
     return
   }
 
-  if (req.cookies.go_memo_session) {
+  const authHeader = req.headers.authorization
+  if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
-      const decodedUser = jwt.verify(req.cookies.go_memo_session, secret, {
+      const bearerToken = authHeader.substring(7) // "Bearer " 제거
+      const decodedUser = jwt.verify(bearerToken, secret, {
         issuer: 'express_goyoung2',
         audience: 'memo_app',
       }) as MemoUserDocument & jwt.JwtPayload
 
       if (decodedUser && decodedUser.email) {
         // DB에서 사용자 정보를 조회하여 locked 상태 포함
-        const user = await MemoUserModel.findOne({
+        const foundUser = await MemoUserModel.findOne({
           email: decodedUser.email,
           sub: decodedUser.sub,
         })
 
         const userWithLocked = {
           ...decodedUser,
-          locked: !!user?.hashedLockPassword,
+          locked: !!foundUser?.hashedLockPassword,
         }
 
         req.body = { ...req.body, decodedUser: userWithLocked }
 
         const shouldRefreshToken = shouldRefreshJwtToken(decodedUser)
         if (shouldRefreshToken && req.res) {
-          const secret = process.env.GOOGLE_SECRET
-          if (secret) {
-            const newToken = jwt.sign(decodedUser, secret, {
-              expiresIn: '60d',
-              issuer: 'express_goyoung2',
-              audience: 'memo_app',
-            })
-            req.res.cookie('go_memo_session', newToken, {
-              httpOnly: true,
-              secure: true,
-              sameSite: 'none',
-              partitioned: true,
-              expires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-            })
-            console.info(
-              `[tokenRefresh] ${decodedUser.name}, ${decodedUser.email}`
-            )
-          }
+          const newSignedToken = jwt.sign(decodedUser, secret, {
+            expiresIn: '60d',
+            issuer: 'express_goyoung2',
+            audience: 'memo_app',
+          })
+          // 토큰을 응답 헤더에 포함하여 클라이언트가 새 토큰을 받을 수 있도록 함
+          req.res.setHeader('X-New-Token', newSignedToken)
+          console.info(
+            `[tokenRefresh] ${decodedUser.name}, ${decodedUser.email}`
+          )
         }
 
         console.info(
           `[sessionCheck] ${decodedUser.name}, ${decodedUser.email}, ${req.ip}, ${req.url}`
         )
       } else {
-        console.warn(`[invalidJwt] ${req.ip}, ${req.url}`)
+        console.info(`[invalidJwt] ${req.ip}, ${req.url}`)
       }
     } catch (err) {
       console.error(`sessionCheck error: ${req.ip}, ${req.url}, ${err}`)
-      if (req.res) {
-        req.res.clearCookie('go_memo_session')
-      }
     }
   } else {
-    console.info(`[noSession] ${req.ip}, ${req.url}`)
+    console.info(`[noToken] ${req.ip}, ${req.url}`)
   }
 }

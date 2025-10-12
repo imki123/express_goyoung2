@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+import mongoose, { InferSchemaType } from 'mongoose'
 
 export const MemoUserSchema = new mongoose.Schema(
   {
@@ -14,17 +14,8 @@ export const MemoUserSchema = new mongoose.Schema(
   }
 )
 
-export interface MemoUserDocument {
-  email: string
-  sub: string
-  name?: string
-  picture?: string
-  hashedLockPassword?: string
-  locked?: boolean
-  _id: string
-  createdAt: Date
-  updatedAt: Date
-}
+// 스키마에서 타입 자동 추출
+export type MemoUserDocument = InferSchemaType<typeof MemoUserSchema>
 
 // collection name: memousers
 export const MemoUserModel = mongoose.model<MemoUserDocument>(

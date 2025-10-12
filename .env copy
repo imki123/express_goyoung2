@@ -1,12 +1,10 @@
 # go-memo
-GOOGLE_SECRET=
 PORT=
 MONGO_DB_URI=
 BE_URL=
 
 # account-book
 ALLOWED_EMAIL_FOR_ACCOUNT_BOOK=
-JWT_SECRET=
 
 # catbook
 CAT_API_KEY=
@@ -19,3 +17,4 @@ REACT_APP_URL=
 
 # common
 JWT_EXPIRES_IN=60d
+GOOGLE_SECRET=

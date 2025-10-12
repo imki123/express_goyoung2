@@ -2,6 +2,7 @@ import { Router } from 'express'
 import jwt from 'jsonwebtoken'
 import { cookieOptions } from '../../cookie'
 import { ACCOUNT_BOOK_ACCESS_TOKEN } from './constants'
+import { AccountBookUserDocument } from '../../model/accountBookUser'
 
 const userRouter = Router()
 
@@ -23,14 +24,20 @@ const isAuthorizedEmail = (email: string) => {
 // 유저정보로 로그인
 userRouter.post(urls.login, async (req, res) => {
   try {
-    const user = req.body
+    const userData = req.body as Partial<AccountBookUserDocument>
     // 이메일 체크
-    if (isAuthorizedEmail(user.email)) {
-      const session = jwt.sign(
-        user,
-        process.env.JWT_SECRET || '' //JWT 암호
-      )
-      res.send({ session, user }) // jwt 토큰 FE에 보내기
+    if (isAuthorizedEmail(userData.email || '')) {
+      const userPayload = {
+        email: userData.email,
+        name: userData.name,
+        picture: userData.picture,
+      }
+      const session = jwt.sign(userPayload, process.env.JWT_SECRET || '', {
+        issuer: 'express_goyoung2',
+        audience: 'account_book_app',
+        expiresIn: '60d',
+      })
+      res.send({ session, user: userPayload }) // jwt 토큰 FE에 보내기
     } else {
       res.send('email error')
     }
@@ -43,8 +50,11 @@ userRouter.post(urls.login, async (req, res) => {
 // 토큰 이메일 체크 (300일 이하면 미들웨어에서 토큰 재발급)
 userRouter.post(urls.checkSession, async (req, res) => {
   try {
-    if (req.body?.decodedUser) {
-      res.send(req.body.session)
+    const decodedUser = req.body?.decodedUser as
+      | AccountBookUserDocument
+      | undefined
+    if (decodedUser) {
+      res.send({ user: decodedUser, token: req.body.session })
     } else {
       console.error('/checkToken: No Token!!')
       res.send(false)
@@ -76,9 +86,14 @@ userRouter.post(urls.logout, async (req, res) => {
 // 유저 정보 가져오기
 userRouter.get(urls.root, async (req, res) => {
   try {
-    if (req.body?.decodedUser) {
-      res.send(JSON.stringify(req.body?.decodedUser))
-    } else res.status(403).send(false)
+    const decodedUser = req.body?.decodedUser as
+      | AccountBookUserDocument
+      | undefined
+    if (decodedUser) {
+      res.send(decodedUser)
+    } else {
+      res.status(403).send({ error: '인증이 필요합니다.' })
+    }
   } catch (e) {
     res.status(500).send(e)
   }
