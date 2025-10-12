@@ -25,8 +25,33 @@ export const cookieOptions = (option?: CookieOptions): CookieOptions => ({
   ...option,
 })
 
-// 쿠키 생성 기본 365일, GMT+9시간
-export const cookieExpire = (day = 365) =>
+export const jwtCookieOptions = (jwtExpiresIn: string): CookieOptions => {
+  const days = parseJwtExpiresIn(jwtExpiresIn)
+  return cookieOptions({ expires: cookieExpire(days) })
+}
+
+const parseJwtExpiresIn = (expiresIn: string): number => {
+  const match = expiresIn.match(/(\d+)([dhms])/)
+  if (!match) return 60
+
+  const value = parseInt(match[1])
+  const unit = match[2]
+
+  switch (unit) {
+    case 'd':
+      return value
+    case 'h':
+      return Math.ceil(value / 24)
+    case 'm':
+      return Math.ceil(value / (24 * 60))
+    case 's':
+      return Math.ceil(value / (24 * 60 * 60))
+    default:
+      return 60
+  }
+}
+
+const cookieExpire = (day = 60) =>
   dayjs()
     .add(day, 'day')
     .add(process.env.NODE_ENV === 'production' ? 9 : 0, 'hour')

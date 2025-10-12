@@ -11,6 +11,10 @@ pnpm i
 pnpm dev
 ```
 
+## Set env file
+
+Make `.env` file with `.env copy` file.
+
 ## How to deploy
 
 ```sh

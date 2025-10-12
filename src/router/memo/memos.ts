@@ -1,4 +1,5 @@
 import { MemoMemoModel } from '../../model/memoMemo'
+import { MemoUserDocument } from '../../model/memoUser'
 import { Router } from 'express'
 import dayjs from 'dayjs'
 
@@ -25,15 +26,15 @@ memosRouter.get(urls.allIds, async (req, res) => {
 // email, sub로 목록 전체 불러오기
 memosRouter.get(urls.root, async (req, res) => {
   try {
-    const { email, sub } = req.body.decodedUser || {}
-    if (email && sub) {
-      const memos = await MemoMemoModel.find({ email, sub }, null, {
-        sort: { memoId: -1 }, // 내림차순
-      })
-      res.send(memos)
-    } else {
-      res.status(403).send('no session')
+    const decodedUser = req.body.decodedUser as MemoUserDocument | undefined
+    if (!decodedUser) {
+      return res.status(401).send({ error: '인증이 필요합니다.' })
     }
+    const { email, sub } = decodedUser
+    const memos = await MemoMemoModel.find({ email, sub }, null, {
+      sort: { memoId: -1 }, // 내림차순
+    })
+    res.send(memos)
   } catch (err) {
     res.status(500).send(err)
   }
@@ -41,14 +42,18 @@ memosRouter.get(urls.root, async (req, res) => {
 
 memosRouter.get(urls.memoId, async (req, res) => {
   try {
-    const { email, sub } = req.body.decodedUser || {}
+    const decodedUser = req.body.decodedUser as MemoUserDocument | undefined
+    if (!decodedUser) {
+      return res.status(401).send({ error: '인증이 필요합니다.' })
+    }
+    const { email, sub } = decodedUser
     const { memoId } = req.params
-    if (email && sub && memoId) {
+    if (memoId) {
       const memo = await MemoMemoModel.findOne({ email, sub, memoId })
       if (memo) res.send(memo)
       else res.status(400).send(false)
     } else {
-      res.status(403).send('no session')
+      res.status(400).send({ error: 'memoId가 필요합니다.' })
     }
   } catch (err) {
     res.status(500).send(err)
