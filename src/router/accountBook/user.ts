@@ -9,7 +9,7 @@ const userRouter = Router()
 const urls = {
   root: '/',
   login: '/login',
-  checkSession: '/checkSession',
+  checkToken: '/checkToken',
   logout: '/logout',
 }
 
@@ -21,23 +21,21 @@ const isAuthorizedEmail = (email: string) => {
   return allowedEmails?.includes(email)
 }
 
-// 유저정보로 로그인
 userRouter.post(urls.login, async (req, res) => {
   try {
     const userData = req.body as Partial<AccountBookUserDocument>
-    // 이메일 체크
     if (isAuthorizedEmail(userData.email || '')) {
       const userPayload = {
         email: userData.email,
         name: userData.name,
         picture: userData.picture,
       }
-      const session = jwt.sign(userPayload, process.env.JWT_SECRET || '', {
+      const token = jwt.sign(userPayload, process.env.GOOGLE_SECRET || '', {
         issuer: 'express_goyoung2',
         audience: 'account_book_app',
         expiresIn: '60d',
       })
-      res.send({ session, user: userPayload }) // jwt 토큰 FE에 보내기
+      res.send({ token, ...userPayload })
     } else {
       res.send('email error')
     }
@@ -47,31 +45,36 @@ userRouter.post(urls.login, async (req, res) => {
   }
 })
 
-// 토큰 이메일 체크 (300일 이하면 미들웨어에서 토큰 재발급)
-userRouter.post(urls.checkSession, async (req, res) => {
+userRouter.post(urls.checkToken, async (req, res) => {
   try {
     const decodedUser = req.body?.decodedUser as
       | AccountBookUserDocument
       | undefined
+    const token = req.body?.token
+
     if (decodedUser) {
-      res.send({ user: decodedUser, token: req.body.session })
+      if (typeof token === 'string') {
+        res.send({ ...decodedUser, token })
+      } else {
+        console.error('/checkToken: Token is not a string:', token)
+        res.status(500).send({ error: 'Invalid token format' })
+      }
     } else {
-      console.error('/checkToken: No Token!!')
+      console.error('/checkToken: No decodedUser!!')
       res.send(false)
     }
   } catch (e) {
+    console.error('/checkToken error:', e)
     res.status(500).send(e)
   }
 })
 
-const sessionBlacklist: string[] = []
+const tokenBlacklist: string[] = []
 
-// 로그아웃 세션만료
 userRouter.post(urls.logout, async (req, res) => {
   try {
-    if (req.body?.session && !sessionBlacklist.includes(req.body.session)) {
-      sessionBlacklist.push(req.body.session)
-      // 쿠키 삭제. deprecated
+    if (req.body?.token && !tokenBlacklist.includes(req.body.token)) {
+      tokenBlacklist.push(req.body.token)
       res.clearCookie(ACCOUNT_BOOK_ACCESS_TOKEN, cookieOptions())
       res.send(true)
     } else {
@@ -83,7 +86,6 @@ userRouter.post(urls.logout, async (req, res) => {
   }
 })
 
-// 유저 정보 가져오기
 userRouter.get(urls.root, async (req, res) => {
   try {
     const decodedUser = req.body?.decodedUser as
