@@ -1,4 +1,8 @@
-import { MemoUserModel, MemoUserDocument } from '../../model/memoUser'
+import {
+  MemoUserModel,
+  MemoUserDocument,
+  MemoJwtPayload,
+} from '../../model/memoUser'
 import { Router, Request } from 'express'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
@@ -40,12 +44,11 @@ userRouter.post(urls.login, async (req, res) => {
     if (token) {
       // google login jwt decoded(암호화 안되어있음)
       const decoded = jwt.decode(token) as jwt.JwtPayload
-      // decoded로 signed 만들고 토큰으로 반환
-      const user = {
+      const user: MemoJwtPayload = {
         name: decoded.name,
         email: decoded.email,
         picture: decoded.picture,
-        sub: decoded.sub,
+        sub: decoded.sub || '',
       }
       console.info(`[userDecoded] ${user.name}, ${user.email}`)
 
@@ -237,7 +240,10 @@ userRouter.post(urls.removeLock, async (req: AuthenticatedRequest, res) => {
     })
 
     if (user && user.hashedLockPassword) {
-      const isValidPassword = await bcrypt.compare(password, user.hashedLockPassword)
+      const isValidPassword = await bcrypt.compare(
+        password,
+        user.hashedLockPassword
+      )
       if (!isValidPassword) {
         return res.status(401).send({ error: '비밀번호가 일치하지 않습니다.' })
       }
@@ -246,7 +252,11 @@ userRouter.post(urls.removeLock, async (req: AuthenticatedRequest, res) => {
       res.send({ success: true, message: '잠금 비밀번호가 제거되었습니다.' })
     } else {
       console.info(`[removeLock fail] ${decodedUser.email}, ${decodedUser.sub}`)
-      res.status(404).send({ error: '사용자를 찾을 수 없거나 비밀번호가 설정되지 않았습니다.' })
+      res
+        .status(404)
+        .send({
+          error: '사용자를 찾을 수 없거나 비밀번호가 설정되지 않았습니다.',
+        })
     }
   } catch (err) {
     console.error(err)
