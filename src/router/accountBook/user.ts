@@ -2,7 +2,7 @@ import { Router } from 'express'
 import jwt from 'jsonwebtoken'
 import { cookieOptions } from '../../cookie'
 import { ACCOUNT_BOOK_ACCESS_TOKEN } from './constants'
-import { AccountBookUserDocument } from '../../model/accountBookUser'
+import { AccountBookJwtPayload, AccountBookUserDocument } from '../../model/accountBookUser'
 
 const userRouter = Router()
 
@@ -25,8 +25,8 @@ userRouter.post(urls.login, async (req, res) => {
   try {
     const userData = req.body as Partial<AccountBookUserDocument>
     if (isAuthorizedEmail(userData.email || '')) {
-      const userPayload = {
-        email: userData.email,
+      const userPayload: AccountBookJwtPayload = {
+        email: userData.email || '',
         name: userData.name,
         picture: userData.picture,
       }
@@ -48,7 +48,7 @@ userRouter.post(urls.login, async (req, res) => {
 userRouter.post(urls.checkToken, async (req, res) => {
   try {
     const decodedUser = req.body?.decodedUser as
-      | AccountBookUserDocument
+      | AccountBookJwtPayload
       | undefined
     const token = req.body?.token
 
@@ -89,7 +89,7 @@ userRouter.post(urls.logout, async (req, res) => {
 userRouter.get(urls.root, async (req, res) => {
   try {
     const decodedUser = req.body?.decodedUser as
-      | AccountBookUserDocument
+      | AccountBookJwtPayload
       | undefined
     if (decodedUser) {
       res.send(decodedUser)

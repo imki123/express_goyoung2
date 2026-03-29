@@ -1,6 +1,6 @@
 import { Request } from 'express'
 import jwt from 'jsonwebtoken'
-import { AccountBookUserDocument } from '../model/accountBookUser'
+import { AccountBookJwtPayload } from '../model/accountBookUser'
 
 export const accountBookSessionCheck = async (req: Request) => {
   const secret = process.env.GOOGLE_SECRET
@@ -14,19 +14,20 @@ export const accountBookSessionCheck = async (req: Request) => {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
       const bearerToken = authHeader.substring(7)
-      const decodedUser = jwt.verify(bearerToken, secret, {
+      const decoded = jwt.verify(bearerToken, secret, {
         issuer: 'express_goyoung2',
         audience: 'account_book_app',
-      }) as AccountBookUserDocument & jwt.JwtPayload
+      }) as AccountBookJwtPayload & jwt.JwtPayload
 
-      if (decodedUser && decodedUser.email) {
-        req.body = {
-          ...req.body,
-          decodedUser: decodedUser,
-          token: bearerToken,
+      if (decoded.email) {
+        const decodedUser: AccountBookJwtPayload = {
+          email: decoded.email,
+          name: decoded.name,
+          picture: decoded.picture,
         }
+        req.body = { ...req.body, decodedUser, token: bearerToken }
         console.info(
-          `[tokenCheck] ${decodedUser.name}, ${decodedUser.email}, ${req.ip}, ${req.url}`
+          `[tokenCheck] ${decoded.name}, ${decoded.email}, ${req.ip}, ${req.url}`
         )
       } else {
         console.info(`[invalidJwt] ${req.ip}, ${req.url}`)
