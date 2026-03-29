@@ -224,6 +224,7 @@ userRouter.post(urls.unlock, async (req: AuthenticatedRequest, res) => {
 
 userRouter.post(urls.removeLock, async (req: AuthenticatedRequest, res) => {
   try {
+    const { password } = req.body
     const decodedUser = req.body.decodedUser
 
     if (!decodedUser) {
@@ -235,13 +236,17 @@ userRouter.post(urls.removeLock, async (req: AuthenticatedRequest, res) => {
       sub: decodedUser.sub,
     })
 
-    if (user) {
+    if (user && user.hashedLockPassword) {
+      const isValidPassword = await bcrypt.compare(password, user.hashedLockPassword)
+      if (!isValidPassword) {
+        return res.status(401).send({ error: '비밀번호가 일치하지 않습니다.' })
+      }
       user.hashedLockPassword = undefined
       await user.save()
       res.send({ success: true, message: '잠금 비밀번호가 제거되었습니다.' })
     } else {
       console.info(`[removeLock fail] ${decodedUser.email}, ${decodedUser.sub}`)
-      res.status(404).send({ error: '사용자를 찾을 수 없습니다.' })
+      res.status(404).send({ error: '사용자를 찾을 수 없거나 비밀번호가 설정되지 않았습니다.' })
     }
   } catch (err) {
     console.error(err)
