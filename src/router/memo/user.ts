@@ -2,6 +2,7 @@ import { MemoUserModel, MemoJwtPayload } from '../../model/memoUser'
 import { Router, Request } from 'express'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
+import { verifyGoogleCredential } from './googleAuth'
 
 const userRouter = Router()
 
@@ -26,25 +27,34 @@ userRouter.get(urls.root, (req, res) => {
 userRouter.post(urls.login, async (req, res) => {
   const token = req.body.credential
   const secret = process.env.GOOGLE_SECRET
+  const googleClientId = process.env.GOOGLE_CLIENT_ID
 
-  // 환경변수 검증
   if (!secret) {
     console.error('GOOGLE_SECRET 환경변수가 설정되지 않았습니다.')
     return res.status(500).send('서버 설정 오류')
   }
 
-  console.info(`[loginAttempt] ${req.ip}, ${req.url}, ${token}`)
+  if (!googleClientId) {
+    console.error('GOOGLE_CLIENT_ID 환경변수가 설정되지 않았습니다.')
+    return res.status(500).send('서버 설정 오류')
+  }
+
+  console.info(`[loginAttempt] ${req.ip}, ${req.url}`)
   try {
     if (token) {
-      // google login jwt decoded(암호화 안되어있음)
-      const decoded = jwt.decode(token) as jwt.JwtPayload
-      const user: MemoJwtPayload = {
-        name: decoded.name,
-        email: decoded.email,
-        picture: decoded.picture,
-        sub: decoded.sub || '',
+      const decoded = await verifyGoogleCredential(token, googleClientId)
+
+      if (!decoded?.email || !decoded.sub) {
+        return res.status(401).send({ error: '유효한 구글 토큰이 아닙니다.' })
       }
-      console.info(`[userDecoded] ${user.name}, ${user.email}`)
+
+      const user: MemoJwtPayload = {
+        name: decoded.name || '',
+        email: decoded.email,
+        picture: decoded.picture || '',
+        sub: decoded.sub,
+      }
+      console.info(`[userVerified] ${user.email}`)
 
       const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '60d'
       const signedToken = jwt.sign(user, secret, {
@@ -85,7 +95,6 @@ userRouter.post(urls.login, async (req, res) => {
       } else {
         const newUser = new MemoUserModel(user)
         const savedUser = await newUser.save()
-        console.info('>>> newUser:', savedUser)
         const userWithLockedAndToken = {
           ...savedUser.toObject(),
           locked: !!savedUser.hashedLockPassword,
