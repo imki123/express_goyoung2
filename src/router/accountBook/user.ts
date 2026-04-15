@@ -2,7 +2,10 @@ import { Router } from 'express'
 import jwt from 'jsonwebtoken'
 import { cookieOptions } from '../../cookie'
 import { ACCOUNT_BOOK_ACCESS_TOKEN } from './constants'
-import { AccountBookJwtPayload, AccountBookUserDocument } from '../../model/accountBookUser'
+import {
+  AccountBookJwtPayload,
+  AccountBookUserDocument,
+} from '../../model/accountBookUser'
 
 const userRouter = Router()
 

@@ -8,11 +8,11 @@
     "production": "rm -rf dist node_modules && pnpm i && pnpm build && pnpm start",
     "build": "tsc -p .",
     "start": "cross-env NODE_ENV=production node dist/app.js",
-    "lint": "eslint --fix .",
-    "prettier": "prettier --write .",
+    "eslint": "eslint --fix src tests --ext .ts --ignore-pattern dist",
+    "prettier": "prettier --write src tests package.json \".env copy\" jest.config.cjs tsconfig.json",
     "typecheck": "tsc --noEmit",
     "test": "jest --runInBand",
-    "check:all": "pnpm lint && pnpm prettier && pnpm typecheck && pnpm test"
+    "check:all": "pnpm eslint && pnpm prettier && pnpm typecheck && pnpm test"
   },
   "author": "goyoung2",
   "license": "ISC",

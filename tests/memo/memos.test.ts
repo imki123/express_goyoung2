@@ -45,7 +45,8 @@ const createApp = (withAuth = true) => {
 
   if (withAuth) {
     const authMiddleware: RequestHandler = (req, _res, next) => {
-      (req as MemoRequest).memoUser = memoUser
+      const memoReq = req as MemoRequest
+      memoReq.memoUser = memoUser
       next()
     }
 
