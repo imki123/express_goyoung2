@@ -43,7 +43,7 @@ export const sessionCheck = async (req: Request) => {
           locked: !!foundUser?.hashedLockPassword,
         }
 
-        req.body = { ...req.body, decodedUser }
+        req.memoUser = decodedUser
 
         if (shouldRefreshJwtToken(decoded) && req.res) {
           const payload: MemoJwtPayload = {

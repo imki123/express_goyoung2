@@ -1,5 +1,4 @@
 import { MemoMemoModel } from '../../model/memoMemo'
-import { MemoUserDocument } from '../../model/memoUser'
 import { Router } from 'express'
 import dayjs from 'dayjs'
 
@@ -26,9 +25,7 @@ memosRouter.get(urls.allIds, async (req, res) => {
 // email, sub로 목록 전체 불러오기
 memosRouter.get(urls.root, async (req, res) => {
   try {
-    const authenticatedUser = req.body.decodedUser as
-      | MemoUserDocument
-      | undefined
+    const authenticatedUser = req.memoUser
     if (!authenticatedUser) {
       return res.status(401).send({ error: '인증이 필요합니다.' })
     }
@@ -44,9 +41,7 @@ memosRouter.get(urls.root, async (req, res) => {
 
 memosRouter.get(urls.memoId, async (req, res) => {
   try {
-    const authenticatedUser = req.body.decodedUser as
-      | MemoUserDocument
-      | undefined
+    const authenticatedUser = req.memoUser
     if (!authenticatedUser) {
       return res.status(401).send({ error: '인증이 필요합니다.' })
     }
@@ -67,9 +62,7 @@ memosRouter.get(urls.memoId, async (req, res) => {
 // 메모 추가
 memosRouter.post(urls.root, async (req, res) => {
   try {
-    const authenticatedUser = req.body.decodedUser as
-      | MemoUserDocument
-      | undefined
+    const authenticatedUser = req.memoUser
     if (!authenticatedUser) {
       return res.status(401).send({ error: '인증이 필요합니다.' })
     }
@@ -101,9 +94,7 @@ memosRouter.post(urls.root, async (req, res) => {
 
 memosRouter.patch(urls.root, async (req, res) => {
   try {
-    const authenticatedUser = req.body.decodedUser as
-      | MemoUserDocument
-      | undefined
+    const authenticatedUser = req.memoUser
     if (!authenticatedUser) {
       return res.status(401).send({ error: '인증이 필요합니다.' })
     }
@@ -136,9 +127,7 @@ memosRouter.patch(urls.root, async (req, res) => {
 
 memosRouter.delete(urls.memoId, async (req, res) => {
   try {
-    const authenticatedUser = req.body.decodedUser as
-      | MemoUserDocument
-      | undefined
+    const authenticatedUser = req.memoUser
     if (!authenticatedUser) {
       return res.status(401).send({ error: '인증이 필요합니다.' })
     }
