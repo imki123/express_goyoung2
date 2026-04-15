@@ -6,9 +6,15 @@ import { verifyGoogleCredential } from './googleAuth'
 
 const userRouter = Router()
 
-interface AuthenticatedRequest extends Request {
-  memoUser?: MemoJwtPayload & { locked: boolean }
+type PasswordBody = {
+  password: string
 }
+
+const withMemoToken = <T extends object>(user: T, accessToken: string) => ({
+  ...user,
+  accessToken,
+  token: accessToken,
+})
 
 const urls = {
   root: '/',
@@ -75,35 +81,41 @@ userRouter.post(urls.login, async (req, res) => {
             { new: true }
           )
           if (updatedUser) {
-            const userWithLockedAndToken = {
-              ...updatedUser.toObject(),
-              locked: !!updatedUser.hashedLockPassword,
-              token: signedToken,
-            }
+            const userWithLockedAndToken = withMemoToken(
+              {
+                ...updatedUser.toObject(),
+                locked: !!updatedUser.hashedLockPassword,
+              },
+              signedToken
+            )
             res.send(userWithLockedAndToken)
           } else {
             res.status(500).send({ error: '사용자 업데이트에 실패했습니다.' })
           }
         } else {
-          const userWithLockedAndToken = {
-            ...existingUser.toObject(),
-            locked: !!existingUser.hashedLockPassword,
-            token: signedToken,
-          }
+          const userWithLockedAndToken = withMemoToken(
+            {
+              ...existingUser.toObject(),
+              locked: !!existingUser.hashedLockPassword,
+            },
+            signedToken
+          )
           res.send(userWithLockedAndToken)
         }
       } else {
         const newUser = new MemoUserModel(user)
         const savedUser = await newUser.save()
-        const userWithLockedAndToken = {
-          ...savedUser.toObject(),
-          locked: !!savedUser.hashedLockPassword,
-          token: signedToken,
-        }
+        const userWithLockedAndToken = withMemoToken(
+          {
+            ...savedUser.toObject(),
+            locked: !!savedUser.hashedLockPassword,
+          },
+          signedToken
+        )
         res.send(userWithLockedAndToken)
       }
     } else {
-      res.status(500).send('No credential')
+      res.status(400).send({ error: 'credential가 필요합니다.' })
     }
   } catch (err) {
     console.error(err)
@@ -145,11 +157,13 @@ userRouter.post(urls.checkLogin, async (req, res) => {
       })
 
       if (foundUser) {
-        const userWithLockedAndToken = {
-          ...foundUser.toObject(),
-          locked: !!foundUser.hashedLockPassword,
-          token: bearerToken,
-        }
+        const userWithLockedAndToken = withMemoToken(
+          {
+            ...foundUser.toObject(),
+            locked: !!foundUser.hashedLockPassword,
+          },
+          bearerToken
+        )
         res.send(userWithLockedAndToken)
       } else {
         res.status(404).send({ error: '사용자를 찾을 수 없습니다.' })
@@ -164,105 +178,118 @@ userRouter.post(urls.checkLogin, async (req, res) => {
   }
 })
 
-userRouter.post(urls.setLock, async (req: AuthenticatedRequest, res) => {
-  try {
-    const { password } = req.body
-    const decodedUser = req.memoUser
+userRouter.post(
+  urls.setLock,
+  async (req: Request<Record<string, never>, unknown, PasswordBody>, res) => {
+    try {
+      const { password } = req.body
+      const decodedUser = req.memoUser
 
-    if (!decodedUser) {
-      return res.status(401).send({ error: '인증이 필요합니다.' })
-    }
+      if (!decodedUser) {
+        return res.status(401).send({ error: '인증이 필요합니다.' })
+      }
 
-    const user = await MemoUserModel.findOne({
-      email: decodedUser.email,
-      sub: decodedUser.sub,
-    })
+      const user = await MemoUserModel.findOne({
+        email: decodedUser.email,
+        sub: decodedUser.sub,
+      })
 
-    if (user) {
-      const saltRounds = 12
-      const hashedLockPassword = await bcrypt.hash(password, saltRounds)
-      user.hashedLockPassword = hashedLockPassword
-      await user.save()
-      res.send({ success: true, message: '비밀번호가 설정되었습니다.' })
-    } else {
-      res.status(404).send({ error: '사용자를 찾을 수 없습니다.' })
-    }
-  } catch (err) {
-    console.error(err)
-    res.status(500).send({ error: '서버 오류가 발생했습니다.' })
-  }
-})
-
-userRouter.post(urls.unlock, async (req: AuthenticatedRequest, res) => {
-  try {
-    const { password } = req.body
-    const decodedUser = req.memoUser
-
-    if (!decodedUser) {
-      return res.status(401).send({ error: '인증이 필요합니다.' })
-    }
-
-    const user = await MemoUserModel.findOne({
-      email: decodedUser.email,
-      sub: decodedUser.sub,
-    })
-
-    if (user && user.hashedLockPassword) {
-      const isValidPassword = await bcrypt.compare(
-        password,
-        user.hashedLockPassword
-      )
-      if (isValidPassword) {
-        res.send({ success: true, message: '잠금이 해제되었습니다.' })
+      if (user) {
+        const saltRounds = 12
+        const hashedLockPassword = await bcrypt.hash(password, saltRounds)
+        user.hashedLockPassword = hashedLockPassword
+        await user.save()
+        res.send({ success: true, message: '비밀번호가 설정되었습니다.' })
       } else {
-        res.status(401).send({ error: '비밀번호가 일치하지 않습니다.' })
+        res.status(404).send({ error: '사용자를 찾을 수 없습니다.' })
       }
-    } else {
-      res.status(404).send({
-        error: '사용자를 찾을 수 없거나 비밀번호가 설정되지 않았습니다.',
-      })
+    } catch (err) {
+      console.error(err)
+      res.status(500).send({ error: '서버 오류가 발생했습니다.' })
     }
-  } catch (err) {
-    console.error(err)
-    res.status(500).send({ error: '비밀번호 검증 중 오류가 발생했습니다.' })
   }
-})
+)
 
-userRouter.post(urls.removeLock, async (req: AuthenticatedRequest, res) => {
-  try {
-    const { password } = req.body
-    const decodedUser = req.memoUser
+userRouter.post(
+  urls.unlock,
+  async (req: Request<Record<string, never>, unknown, PasswordBody>, res) => {
+    try {
+      const { password } = req.body
+      const decodedUser = req.memoUser
 
-    if (!decodedUser) {
-      return res.status(401).send({ error: '인증이 필요합니다.' })
-    }
-
-    const user = await MemoUserModel.findOne({
-      email: decodedUser.email,
-      sub: decodedUser.sub,
-    })
-
-    if (user && user.hashedLockPassword) {
-      const isValidPassword = await bcrypt.compare(
-        password,
-        user.hashedLockPassword
-      )
-      if (!isValidPassword) {
-        return res.status(401).send({ error: '비밀번호가 일치하지 않습니다.' })
+      if (!decodedUser) {
+        return res.status(401).send({ error: '인증이 필요합니다.' })
       }
-      user.hashedLockPassword = undefined
-      await user.save()
-      res.send({ success: true, message: '잠금 비밀번호가 제거되었습니다.' })
-    } else {
-      console.info(`[removeLock fail] ${decodedUser.email}, ${decodedUser.sub}`)
-      res.status(404).send({
-        error: '사용자를 찾을 수 없거나 비밀번호가 설정되지 않았습니다.',
+
+      const user = await MemoUserModel.findOne({
+        email: decodedUser.email,
+        sub: decodedUser.sub,
       })
+
+      if (user && user.hashedLockPassword) {
+        const isValidPassword = await bcrypt.compare(
+          password,
+          user.hashedLockPassword
+        )
+        if (isValidPassword) {
+          res.send({ success: true, message: '잠금이 해제되었습니다.' })
+        } else {
+          res.status(401).send({ error: '비밀번호가 일치하지 않습니다.' })
+        }
+      } else {
+        res.status(404).send({
+          error: '사용자를 찾을 수 없거나 비밀번호가 설정되지 않았습니다.',
+        })
+      }
+    } catch (err) {
+      console.error(err)
+      res.status(500).send({ error: '비밀번호 검증 중 오류가 발생했습니다.' })
     }
-  } catch (err) {
-    console.error(err)
-    res.status(500).send({ error: '서버 오류가 발생했습니다.' })
   }
-})
+)
+
+userRouter.post(
+  urls.removeLock,
+  async (req: Request<Record<string, never>, unknown, PasswordBody>, res) => {
+    try {
+      const { password } = req.body
+      const decodedUser = req.memoUser
+
+      if (!decodedUser) {
+        return res.status(401).send({ error: '인증이 필요합니다.' })
+      }
+
+      const user = await MemoUserModel.findOne({
+        email: decodedUser.email,
+        sub: decodedUser.sub,
+      })
+
+      if (user && user.hashedLockPassword) {
+        const isValidPassword = await bcrypt.compare(
+          password,
+          user.hashedLockPassword
+        )
+        if (!isValidPassword) {
+          return res
+            .status(401)
+            .send({ error: '비밀번호가 일치하지 않습니다.' })
+        }
+        user.hashedLockPassword = undefined
+        await user.save()
+        res.send({ success: true, message: '잠금 비밀번호가 제거되었습니다.' })
+      } else {
+        console.info(
+          `[removeLock fail] ${decodedUser.email}, ${decodedUser.sub}`
+        )
+        res.status(404).send({
+          error: '사용자를 찾을 수 없거나 비밀번호가 설정되지 않았습니다.',
+        })
+      }
+    } catch (err) {
+      console.error(err)
+      res.status(500).send({ error: '서버 오류가 발생했습니다.' })
+    }
+  }
+)
 
 export default userRouter

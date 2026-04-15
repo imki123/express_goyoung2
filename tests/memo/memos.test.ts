@@ -71,6 +71,25 @@ describe('memo router', () => {
     expect(response.body).toEqual({ error: '인증이 필요합니다.' })
   })
 
+  it('returns the current user memo ids only', async () => {
+    const expectedIds = [{ memoId: 1 }, { memoId: 3 }]
+
+    jest
+      .spyOn(MemoMemoModel, 'find')
+      .mockResolvedValueOnce(expectedIds as never)
+
+    const app = createApp()
+    const response = await request(app).get('/memos/allIds')
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual(expectedIds)
+    expect(MemoMemoModel.find).toHaveBeenCalledWith(
+      { email: memoUser.email, sub: memoUser.sub },
+      'memoId',
+      { sort: { memoId: 1 } }
+    )
+  })
+
   it('returns the current user memos', async () => {
     const expectedMemos: MemoRecord[] = [
       {
@@ -113,13 +132,28 @@ describe('memo router', () => {
     const app = createApp()
     const response = await request(app).post('/memos')
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(201)
     expect(response.body).toEqual(savedMemo)
     expect(MemoMemoModel.findOne).toHaveBeenCalledWith(
-      {},
-      {},
+      { email: memoUser.email, sub: memoUser.sub },
+      { memoId: 1 },
       { sort: { memoId: -1 } }
     )
+  })
+
+  it('returns 404 when the memo is missing', async () => {
+    jest.spyOn(MemoMemoModel, 'findOne').mockResolvedValueOnce(null)
+
+    const app = createApp()
+    const response = await request(app).get('/memos/7')
+
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: '메모를 찾을 수 없습니다.' })
+    expect(MemoMemoModel.findOne).toHaveBeenCalledWith({
+      email: memoUser.email,
+      sub: memoUser.sub,
+      memoId: 7,
+    })
   })
 
   it('updates the memo body for the current user', async () => {
@@ -185,7 +219,7 @@ describe('memo router', () => {
     expect(response.status).toBe(200)
     expect(response.body).toEqual(deletedMemo)
     expect(MemoMemoModel.findOneAndDelete).toHaveBeenCalledWith({
-      memoId: '7',
+      memoId: 7,
       email: memoUser.email,
       sub: memoUser.sub,
     })

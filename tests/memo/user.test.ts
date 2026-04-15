@@ -69,6 +69,7 @@ describe('memo user login', () => {
 
     expect(response.status).toBe(200)
     expect(response.body.email).toBe(googlePayload.email)
+    expect(response.body.accessToken).toEqual(expect.any(String))
     expect(response.body.token).toEqual(expect.any(String))
     expect(mockVerifyGoogleCredential).toHaveBeenCalledWith(
       'google-id-token',
