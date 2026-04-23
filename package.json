@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "cross-env NODE_ENV=dev nodemon --exec ts-node src/app.ts",
     "build": "tsc -p .",
-    "start": "cross-env NODE_ENV=production node dist/app.js",
+    "start": "cross-env NODE_ENV=production node dist/src/app.js",
     "eslint": "eslint --fix src tests --ext .ts --ignore-pattern dist",
     "prettier": "prettier --write src tests package.json \".env copy\" jest.config.cjs tsconfig.json",
     "typecheck": "tsc --noEmit",
