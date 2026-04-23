@@ -1,6 +1,5 @@
 import express, { Request, Response } from 'express'
 
-import axios from 'axios'
 import bodyParser from 'body-parser'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
@@ -13,6 +12,7 @@ mongoose.set('strictQuery', false) // Mongoose deprecation warning 해결
 import accountBookRouter from './router/accountBook'
 import { accountBookSessionCheck } from './middleware/accountBookMiddleware'
 import { catbookRouter } from './router/catbook'
+import { startPreventSleep } from './preventSleep'
 
 dotenv.config()
 export const app = express()
@@ -148,34 +148,4 @@ NODE_ENV: ${process.env.NODE_ENV}
 })
 
 // render sleep 방지
-const mainUrl = process.env.MAIN_SERVER_URL
-const subUrl = process.env.SUB_SERVER_URL
-
-if (mainUrl) {
-  axios.get(mainUrl).catch((error) => {
-    console.error('[preventSleep] Main Server Error:', error)
-  })
-}
-
-if (subUrl) {
-  axios.get(subUrl).catch((error) => {
-    console.error('[preventSleep] Sub Server Error:', error)
-  })
-}
-
-setInterval(function () {
-  const mainUrl = process.env.MAIN_SERVER_URL
-  const subUrl = process.env.SUB_SERVER_URL
-
-  if (mainUrl) {
-    axios.get(mainUrl).catch((error) => {
-      console.error('[preventSleep] Main Server Error:', error)
-    })
-  }
-
-  if (subUrl) {
-    axios.get(subUrl).catch((error) => {
-      console.error('[preventSleep] Sub Server Error:', error)
-    })
-  }
-}, 1000 * 60 * 10)
+startPreventSleep()
