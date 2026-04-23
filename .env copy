@@ -1,7 +1,8 @@
 # go-memo
 PORT=
 MONGO_DB_URI=
-BE_URL=
+MAIN_SERVER_URL=https://express-goyoung2.onrender.com
+SUB_SERVER_URL=https://go-fastify.onrender.com
 
 # account-book
 ALLOWED_EMAIL_FOR_ACCOUNT_BOOK=

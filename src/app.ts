@@ -148,11 +148,34 @@ NODE_ENV: ${process.env.NODE_ENV}
 })
 
 // render sleep 방지
-if (process.env.NODE_ENV === 'production') {
-  setInterval(function () {
-    // Prevent to sleep
-    axios.get(process.env.BE_URL || '').catch((error) => {
-      console.error('[SleepPrevention] Error:', error)
-    })
-  }, 1000 * 60 * 10) //10분
+const mainUrl = process.env.MAIN_SERVER_URL
+const subUrl = process.env.SUB_SERVER_URL
+
+if (mainUrl) {
+  axios.get(mainUrl).catch((error) => {
+    console.error('[preventSleep] Main Server Error:', error)
+  })
 }
+
+if (subUrl) {
+  axios.get(subUrl).catch((error) => {
+    console.error('[preventSleep] Sub Server Error:', error)
+  })
+}
+
+setInterval(function () {
+  const mainUrl = process.env.MAIN_SERVER_URL
+  const subUrl = process.env.SUB_SERVER_URL
+
+  if (mainUrl) {
+    axios.get(mainUrl).catch((error) => {
+      console.error('[preventSleep] Main Server Error:', error)
+    })
+  }
+
+  if (subUrl) {
+    axios.get(subUrl).catch((error) => {
+      console.error('[preventSleep] Sub Server Error:', error)
+    })
+  }
+}, 1000 * 60 * 10)

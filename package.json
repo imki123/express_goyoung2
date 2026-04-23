@@ -5,7 +5,6 @@
   "main": "index.js",
   "scripts": {
     "dev": "cross-env NODE_ENV=dev nodemon --exec ts-node src/app.ts",
-    "production": "rm -rf dist node_modules && pnpm i && pnpm build && pnpm start",
     "build": "tsc -p .",
     "start": "cross-env NODE_ENV=production node dist/app.js",
     "eslint": "eslint --fix src tests --ext .ts --ignore-pattern dist",
