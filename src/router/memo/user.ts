@@ -10,9 +10,26 @@ type PasswordBody = {
   password: string
 }
 
-const withMemoToken = <T extends object>(user: T, accessToken: string) => ({
-  ...user,
-  accessToken,
+type MemoUserResponse = MemoJwtPayload & {
+  locked: boolean
+  token: string
+}
+
+const sanitizeMemoUserWithToken = (
+  user: {
+    email: string
+    sub: string
+    name?: string
+    picture?: string
+    hashedLockPassword?: string // hashed password 제거
+  },
+  accessToken: string
+): MemoUserResponse => ({
+  email: user.email,
+  sub: user.sub,
+  name: user.name,
+  picture: user.picture,
+  locked: !!user.hashedLockPassword,
   token: accessToken,
 })
 
@@ -81,11 +98,8 @@ userRouter.post(urls.login, async (req, res) => {
             { new: true }
           )
           if (updatedUser) {
-            const userWithLockedAndToken = withMemoToken(
-              {
-                ...updatedUser.toObject(),
-                locked: !!updatedUser.hashedLockPassword,
-              },
+            const userWithLockedAndToken = sanitizeMemoUserWithToken(
+              updatedUser,
               signedToken
             )
             res.send(userWithLockedAndToken)
@@ -93,11 +107,8 @@ userRouter.post(urls.login, async (req, res) => {
             res.status(500).send({ error: '사용자 업데이트에 실패했습니다.' })
           }
         } else {
-          const userWithLockedAndToken = withMemoToken(
-            {
-              ...existingUser.toObject(),
-              locked: !!existingUser.hashedLockPassword,
-            },
+          const userWithLockedAndToken = sanitizeMemoUserWithToken(
+            existingUser,
             signedToken
           )
           res.send(userWithLockedAndToken)
@@ -105,11 +116,8 @@ userRouter.post(urls.login, async (req, res) => {
       } else {
         const newUser = new MemoUserModel(user)
         const savedUser = await newUser.save()
-        const userWithLockedAndToken = withMemoToken(
-          {
-            ...savedUser.toObject(),
-            locked: !!savedUser.hashedLockPassword,
-          },
+        const userWithLockedAndToken = sanitizeMemoUserWithToken(
+          savedUser,
           signedToken
         )
         res.send(userWithLockedAndToken)
@@ -157,11 +165,8 @@ userRouter.post(urls.checkLogin, async (req, res) => {
       })
 
       if (foundUser) {
-        const userWithLockedAndToken = withMemoToken(
-          {
-            ...foundUser.toObject(),
-            locked: !!foundUser.hashedLockPassword,
-          },
+        const userWithLockedAndToken = sanitizeMemoUserWithToken(
+          foundUser,
           bearerToken
         )
         res.send(userWithLockedAndToken)

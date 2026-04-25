@@ -57,7 +57,9 @@ const getNextMemoId = async (email: string, sub: string) => {
 }
 
 const createMemoForUser = async (authenticatedUser: MemoUserContext) => {
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  const maxAttempts = 5
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const currentTime = getCurrentTime()
     const memoId = await getNextMemoId(
       authenticatedUser.email,
@@ -75,7 +77,7 @@ const createMemoForUser = async (authenticatedUser: MemoUserContext) => {
     try {
       return await newMemo.save()
     } catch (error) {
-      if (!isDuplicateMemoIdError(error) || attempt === 1) {
+      if (!isDuplicateMemoIdError(error) || attempt === maxAttempts - 1) {
         throw error
       }
     }

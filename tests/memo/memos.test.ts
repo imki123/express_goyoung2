@@ -71,6 +71,15 @@ describe('memo router', () => {
     expect(response.body).toEqual({ error: '인증이 필요합니다.' })
   })
 
+  it('returns 401 when memo ids are requested without auth context', async () => {
+    const app = createApp(false)
+
+    const response = await request(app).get('/memos/allIds')
+
+    expect(response.status).toBe(401)
+    expect(response.body).toEqual({ error: '인증이 필요합니다.' })
+  })
+
   it('returns the current user memo ids only', async () => {
     const expectedIds = [{ memoId: 1 }, { memoId: 3 }]
 
@@ -141,6 +150,35 @@ describe('memo router', () => {
     )
   })
 
+  it('retries memo creation when the next memoId collides', async () => {
+    const savedMemo: MemoRecord = {
+      memoId: 4,
+      email: memoUser.email,
+      sub: memoUser.sub,
+      text: '',
+      createdAt: '2026-04-16T12:00:00',
+      editedAt: '2026-04-16T12:00:00',
+    }
+    const duplicateMemoIdError = { code: 11000 }
+
+    jest
+      .spyOn(MemoMemoModel, 'findOne')
+      .mockResolvedValueOnce({ memoId: 2 })
+      .mockResolvedValueOnce({ memoId: 3 })
+    jest
+      .spyOn(MemoMemoModel.prototype, 'save')
+      .mockRejectedValueOnce(duplicateMemoIdError)
+      .mockResolvedValueOnce(savedMemo)
+
+    const app = createApp()
+    const response = await request(app).post('/memos')
+
+    expect(response.status).toBe(201)
+    expect(response.body).toEqual(savedMemo)
+    expect(MemoMemoModel.findOne).toHaveBeenCalledTimes(2)
+    expect(MemoMemoModel.prototype.save).toHaveBeenCalledTimes(2)
+  })
+
   it('returns 404 when the memo is missing', async () => {
     jest.spyOn(MemoMemoModel, 'findOne').mockResolvedValueOnce(null)
 
@@ -154,6 +192,16 @@ describe('memo router', () => {
       sub: memoUser.sub,
       memoId: 7,
     })
+  })
+
+  it('returns 400 when memoId path params are invalid', async () => {
+    const findOneSpy = jest.spyOn(MemoMemoModel, 'findOne')
+    const app = createApp()
+    const response = await request(app).get('/memos/not-a-number')
+
+    expect(response.status).toBe(400)
+    expect(response.body).toEqual({ error: 'memoId가 올바르지 않습니다.' })
+    expect(findOneSpy).not.toHaveBeenCalled()
   })
 
   it('updates the memo body for the current user', async () => {
@@ -199,6 +247,52 @@ describe('memo router', () => {
     )
   })
 
+  it('returns 400 when update memo data is missing', async () => {
+    const updateSpy = jest.spyOn(MemoMemoModel, 'findOneAndUpdate')
+    const app = createApp()
+    const response = await request(app).patch('/memos').send({})
+
+    expect(response.status).toBe(400)
+    expect(response.body).toEqual({ error: '메모 데이터가 필요합니다.' })
+    expect(updateSpy).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when update memoId is invalid', async () => {
+    const updateSpy = jest.spyOn(MemoMemoModel, 'findOneAndUpdate')
+    const app = createApp()
+    const response = await request(app)
+      .patch('/memos')
+      .send({
+        memo: {
+          memoId: '7',
+          text: 'updated text',
+          editedAt: '2026-04-16T13:00:00',
+        },
+      })
+
+    expect(response.status).toBe(400)
+    expect(response.body).toEqual({ error: 'memoId가 올바르지 않습니다.' })
+    expect(updateSpy).not.toHaveBeenCalled()
+  })
+
+  it('returns 404 when the memo to update is missing', async () => {
+    jest.spyOn(MemoMemoModel, 'findOneAndUpdate').mockResolvedValueOnce(null)
+
+    const app = createApp()
+    const response = await request(app)
+      .patch('/memos')
+      .send({
+        memo: {
+          memoId: 7,
+          text: 'updated text',
+          editedAt: '2026-04-16T13:00:00',
+        },
+      })
+
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: '메모를 찾을 수 없습니다.' })
+  })
+
   it('deletes the memo for the current user', async () => {
     const deletedMemo: MemoRecord = {
       memoId: 7,
@@ -223,5 +317,25 @@ describe('memo router', () => {
       email: memoUser.email,
       sub: memoUser.sub,
     })
+  })
+
+  it('returns 400 when delete memoId is invalid', async () => {
+    const deleteSpy = jest.spyOn(MemoMemoModel, 'findOneAndDelete')
+    const app = createApp()
+    const response = await request(app).delete('/memos/0')
+
+    expect(response.status).toBe(400)
+    expect(response.body).toEqual({ error: 'memoId가 올바르지 않습니다.' })
+    expect(deleteSpy).not.toHaveBeenCalled()
+  })
+
+  it('returns 404 when the memo to delete is missing', async () => {
+    jest.spyOn(MemoMemoModel, 'findOneAndDelete').mockResolvedValueOnce(null)
+
+    const app = createApp()
+    const response = await request(app).delete('/memos/7')
+
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: '메모를 찾을 수 없습니다.' })
   })
 })
