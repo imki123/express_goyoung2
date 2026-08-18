@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express'
+import express, { NextFunction, Request, Response } from 'express'
 
 import bodyParser from 'body-parser'
 import cookieParser from 'cookie-parser'
@@ -12,10 +12,67 @@ mongoose.set('strictQuery', false) // Mongoose deprecation warning 해결
 import accountBookRouter from './router/accountBook'
 import { accountBookSessionCheck } from './middleware/accountBookMiddleware'
 import { catbookRouter } from './router/catbook'
-import { startPreventSleep } from './preventSleep'
+import { startPreventSleep, stopPreventSleep } from './preventSleep'
 
 dotenv.config()
 export const app = express()
+
+let completedResponseCount = 0
+let knownContentLengthResponseCount = 0
+let knownContentLengthBodyByteSum = 0
+let unknownContentLengthResponseCount = 0
+let lifetimeKnownContentLengthBodyByteSum = 0
+let responseDataThresholdWarningEmitted = false
+
+const RESPONSE_BODY_DATA_WINDOW_LIMIT_BYTES = 5 * 1024 * 1024
+const responseDataMeasurementStartedAt = Date.now()
+
+const responseBodyDataEstimateInterval = setInterval(() => {
+  const currentWindowCompletedResponseCount = completedResponseCount
+  const currentWindowKnownContentLengthResponseCount =
+    knownContentLengthResponseCount
+  const currentWindowKnownContentLengthBodyByteSum =
+    knownContentLengthBodyByteSum
+  const currentWindowUnknownContentLengthResponseCount =
+    unknownContentLengthResponseCount
+  lifetimeKnownContentLengthBodyByteSum +=
+    currentWindowKnownContentLengthBodyByteSum
+  const elapsedMilliseconds = Date.now() - responseDataMeasurementStartedAt
+  const elapsedTimeHourlyAverageKnownContentLengthBodyBytes =
+    elapsedMilliseconds > 0
+      ? (lifetimeKnownContentLengthBodyByteSum * 60 * 60 * 1000) /
+        elapsedMilliseconds
+      : 0
+
+  console.info(
+    `[response-body-data estimate; not Render billing] completedResponses=${currentWindowCompletedResponseCount} knownContentLengthResponses=${currentWindowKnownContentLengthResponseCount} currentWindowKnownContentLengthBodyBytes=${currentWindowKnownContentLengthBodyByteSum} lifetimeKnownContentLengthBodyBytes=${lifetimeKnownContentLengthBodyByteSum} elapsedTimeHourlyAverageKnownContentLengthBodyBytes=${elapsedTimeHourlyAverageKnownContentLengthBodyBytes} unknownContentLengthResponses=${currentWindowUnknownContentLengthResponseCount}`
+  )
+
+  if (
+    !responseDataThresholdWarningEmitted &&
+    currentWindowKnownContentLengthBodyByteSum >
+      RESPONSE_BODY_DATA_WINDOW_LIMIT_BYTES
+  ) {
+    responseDataThresholdWarningEmitted = true
+    console.warn(
+      '[response-body-data estimate warning; not Render billing] Current 60-minute known Content-Length bytes exceeded 5 MiB. Stopping only the preventSleep recurring interval.'
+    )
+    stopPreventSleep()
+  }
+
+  completedResponseCount = 0
+  knownContentLengthResponseCount = 0
+  knownContentLengthBodyByteSum = 0
+  unknownContentLengthResponseCount = 0
+}, 60 * 60 * 1000)
+responseBodyDataEstimateInterval.unref()
+
+process.once('SIGINT', () => {
+  clearInterval(responseBodyDataEstimateInterval)
+})
+process.once('SIGTERM', () => {
+  clearInterval(responseBodyDataEstimateInterval)
+})
 
 const corsOptions = {
   origin: [
@@ -26,6 +83,27 @@ const corsOptions = {
   ],
   credentials: true,
 }
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.once('finish', () => {
+    completedResponseCount += 1
+    const contentLengthHeader = res.getHeader('content-length')
+    const contentLength =
+      typeof contentLengthHeader === 'number'
+        ? contentLengthHeader
+        : typeof contentLengthHeader === 'string' &&
+          contentLengthHeader.trim() !== ''
+        ? Number(contentLengthHeader)
+        : Number.NaN
+
+    if (Number.isSafeInteger(contentLength) && contentLength >= 0) {
+      knownContentLengthResponseCount += 1
+      knownContentLengthBodyByteSum += contentLength
+    } else {
+      unknownContentLengthResponseCount += 1
+    }
+  })
+  next()
+})
 app.use(cors(corsOptions))
 app.use(cookieParser())
 app.use(bodyParser.json())
@@ -64,18 +142,29 @@ app.get(urls.root, (req: Request, res: Response) => {
 app.use(urls.memo, memoRouter)
 app.use(urls.accountBook, accountBookRouter)
 app.use(urls.catbook, catbookRouter)
+app.get('/ping', (req: Request, res: Response) => {
+  res.sendStatus(204)
+})
 
 // 전역 에러 핸들러
-app.use((error: Error, req: Request, res: Response) => {
-  console.error('[GlobalErrorHandler] Unhandled error:', error)
-  res.status(500).json({
-    error: 'Internal server error',
-    message:
-      process.env.NODE_ENV === 'development'
-        ? error.message
-        : 'Something went wrong',
-  })
-})
+app.use(
+  (
+    error: Error,
+    req: Request,
+    res: Response,
+    // WARNING: Express recognizes error middleware by its four-parameter arity, so _next must remain.
+    _next: NextFunction
+  ) => {
+    console.error('[GlobalErrorHandler] Unhandled error:', error.message)
+    res.status(500).json({
+      error: 'Internal server error',
+      message:
+        process.env.NODE_ENV === 'development'
+          ? error.message
+          : 'Something went wrong',
+    })
+  }
+)
 
 // 404 핸들러
 app.use('*', (req: Request, res: Response) => {
