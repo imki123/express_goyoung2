@@ -179,9 +179,7 @@ const connectDBWithRetry = async (retryCount = 0, maxRetries = 10) => {
 
   try {
     await mongoose.connect(process.env.MONGO_DB_URI || '')
-    console.info(`[dbConnected] retryCount: ${retryCount}
-MONGO_DB_URI: ${process.env.MONGO_DB_URI}
-`)
+    console.info(`[dbConnected] retryCount: ${retryCount}`)
   } catch (err) {
     const error = err as Error
     console.error(
