@@ -13,7 +13,12 @@ export const startPreventSleep = () => {
   const subServerUrl = process.env.SUB_SERVER_URL
 
   let count = 1
-  console.info('[preventSleep] Fetch:', count, mainServerUrl, subServerUrl)
+  console.info(
+    '[preventSleep] Fetch:',
+    count,
+    createPingUrl(mainServerUrl ?? ''),
+    createPingUrl(subServerUrl ?? '')
+  )
 
   if (mainServerUrl) {
     console.info(`[preventSleep] Main Server URL: ${mainServerUrl}`)
