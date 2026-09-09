@@ -1,18 +1,19 @@
 import express, { NextFunction, Request, Response } from 'express'
+import { createServer } from 'node:http'
 
 import bodyParser from 'body-parser'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import memoRouter from './router/memo'
-import mongoose from 'mongoose'
 import { sessionCheck } from './middleware/memoMiddleware'
 
-mongoose.set('strictQuery', false) // Mongoose deprecation warning 해결
 import accountBookRouter from './router/accountBook'
 import { accountBookSessionCheck } from './middleware/accountBookMiddleware'
 import { catbookRouter } from './router/catbook'
+import { startDatabase } from './database'
 import { startPreventSleep } from './preventSleep'
+import { logProcessError } from './processErrorLogger'
 import { responseBodyDataMeasurementMiddleware } from './responseBodyDataMeasurement'
 
 dotenv.config()
@@ -95,68 +96,31 @@ app.use('*', (req: Request, res: Response) => {
   res.status(404).json({ error: 'Route not found' })
 })
 
-// DB 연결 재시도 로직
-const connectDBWithRetry = async (retryCount = 0, maxRetries = 10) => {
-  const baseDelay = 1000 // 1초
-  const maxDelay = 30000 // 30초
-  const delay = Math.min(baseDelay * Math.pow(2, retryCount), maxDelay)
-
-  try {
-    await mongoose.connect(process.env.MONGO_DB_URI || '')
-    console.info(`[dbConnected] retryCount: ${retryCount}`)
-  } catch (err) {
-    const error = err as Error
-    console.error(
-      `[dbRetry] Attempt ${retryCount + 1}/${maxRetries + 1} failed:`,
-      error.message
-    )
-
-    if (retryCount < maxRetries) {
-      console.info(`[dbRetry] Retrying in ${delay}ms...`)
-      setTimeout(() => {
-        connectDBWithRetry(retryCount + 1, maxRetries)
-      }, delay)
-    } else {
-      console.error(
-        '[dbFailed] Max retries reached. DB connection failed permanently.'
-      )
-    }
-  }
-}
-
-connectDBWithRetry()
-
-// DB 연결 상태 모니터링
-mongoose.connection.on('disconnected', () => {
-  console.error(
-    '[dbDisconnected] MongoDB disconnected. Attempting to reconnect...'
-  )
-  connectDBWithRetry()
-})
-
-mongoose.connection.on('error', (err) => {
-  console.error('[dbError] MongoDB connection error:', err)
-})
-
 // 프로세스 에러 핸들러
 process.on('uncaughtException', (error: Error) => {
-  console.error('[UncaughtException] Fatal error:', error)
+  logProcessError('[UncaughtException] Fatal error:', error)
   // 서버를 종료하지 않고 로그만 남기고 계속 실행
 })
 
 process.on('unhandledRejection', (reason: unknown) => {
-  console.error('[UnhandledRejection] Unhandled promise rejection:', reason)
+  logProcessError('[UnhandledRejection] Unhandled promise rejection:', reason)
   // 서버를 종료하지 않고 로그만 남기고 계속 실행
 })
 
 // app 실행
-app.listen(process.env.PORT || '4001', () => {
+const server = createServer(app)
+
+server.once('error', (error: Error) =>
+  logProcessError('[ServerStartError] Failed to bind server:', error)
+)
+
+server.listen(process.env.PORT || '4001', () => {
   console.info(`
 [serverStart]
 🐈 Server listening on port: ${process.env.PORT || 4001} 🐈
 NODE_ENV: ${process.env.NODE_ENV}
 `)
-})
 
-// render sleep 방지
-startPreventSleep()
+  startDatabase()
+  startPreventSleep()
+})
