@@ -39,7 +39,7 @@ app.use(/^\/memo/, async (req, res, next) => {
     await sessionCheck(req)
     next()
   } catch (error) {
-    console.error('[memoMiddleware] Error:', error)
+    logProcessError('[memoMiddleware] Error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })
@@ -49,7 +49,7 @@ app.use(/^\/accountBook/, async (req, res, next) => {
     await accountBookSessionCheck(req)
     next()
   } catch (error) {
-    console.error('[accountBookMiddleware] Error:', error)
+    logProcessError('[accountBookMiddleware] Error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })

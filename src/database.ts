@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { logProcessError } from './processErrorLogger'
 
 let hasDatabaseStarted = false
 
@@ -48,7 +49,7 @@ export const startDatabase = (): void => {
   })
 
   mongoose.connection.on('error', (error) => {
-    console.error('[dbError] MongoDB connection error:', error)
+    logProcessError('[dbError] MongoDB connection error:', error)
   })
 
   void connectDatabaseWithRetry()
