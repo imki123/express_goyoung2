@@ -3,6 +3,7 @@ import { Router, Request } from 'express'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
 import { verifyGoogleCredential } from './googleAuth'
+import { logProcessError } from '../../processErrorLogger'
 
 const userRouter = Router()
 
@@ -126,7 +127,7 @@ userRouter.post(urls.login, async (req, res) => {
       res.status(400).send({ error: 'credential가 필요합니다.' })
     }
   } catch (err) {
-    console.error(err)
+    logProcessError('[memoLogin] Error:', err)
     res.status(500).send(err)
   }
 })
@@ -174,11 +175,11 @@ userRouter.post(urls.checkLogin, async (req, res) => {
         res.status(404).send({ error: '사용자를 찾을 수 없습니다.' })
       }
     } catch (jwtError) {
-      console.error('JWT 검증 오류:', jwtError)
+      logProcessError('JWT 검증 오류:', jwtError)
       res.status(401).send({ error: '유효하지 않은 토큰입니다.' })
     }
   } catch (err) {
-    console.error(err)
+    logProcessError('[checkLogin] Error:', err)
     res.status(500).send({ error: '서버 오류가 발생했습니다.' })
   }
 })
@@ -209,7 +210,7 @@ userRouter.post(
         res.status(404).send({ error: '사용자를 찾을 수 없습니다.' })
       }
     } catch (err) {
-      console.error(err)
+      logProcessError('[setLock] Error:', err)
       res.status(500).send({ error: '서버 오류가 발생했습니다.' })
     }
   }
@@ -247,7 +248,7 @@ userRouter.post(
         })
       }
     } catch (err) {
-      console.error(err)
+      logProcessError('[unlock] Error:', err)
       res.status(500).send({ error: '비밀번호 검증 중 오류가 발생했습니다.' })
     }
   }
@@ -291,7 +292,7 @@ userRouter.post(
         })
       }
     } catch (err) {
-      console.error(err)
+      logProcessError('[removeLock] Error:', err)
       res.status(500).send({ error: '서버 오류가 발생했습니다.' })
     }
   }

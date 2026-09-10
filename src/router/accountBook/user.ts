@@ -6,6 +6,7 @@ import {
   AccountBookJwtPayload,
   AccountBookUserDocument,
 } from '../../model/accountBookUser'
+import { logProcessError } from '../../processErrorLogger'
 
 const userRouter = Router()
 
@@ -43,7 +44,7 @@ userRouter.post(urls.login, async (req, res) => {
       res.send('email error')
     }
   } catch (e) {
-    console.error(e)
+    logProcessError('[accountBookLogin] Error:', e)
     res.status(500).send(e)
   }
 })
@@ -59,7 +60,7 @@ userRouter.post(urls.checkToken, async (req, res) => {
       if (typeof token === 'string') {
         res.send({ ...decodedUser, token })
       } else {
-        console.error('/checkToken: Token is not a string:', token)
+        logProcessError('/checkToken: Token is not a string:', token)
         res.status(500).send({ error: 'Invalid token format' })
       }
     } else {
@@ -67,7 +68,7 @@ userRouter.post(urls.checkToken, async (req, res) => {
       res.send(false)
     }
   } catch (e) {
-    console.error('/checkToken error:', e)
+    logProcessError('/checkToken error:', e)
     res.status(500).send(e)
   }
 })

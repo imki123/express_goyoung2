@@ -178,6 +178,50 @@ describe('memo user login', () => {
     expect(response.body).not.toHaveProperty('accessToken')
   })
 
+  it('logs expired JWT errors as one concise string', async () => {
+    // Given
+    const token = jwt.sign(
+      {
+        email: memoUser.email,
+        sub: memoUser.sub,
+        name: memoUser.name,
+        picture: memoUser.picture,
+      },
+      process.env.GOOGLE_SECRET || '',
+      {
+        expiresIn: -1,
+        issuer: 'express_goyoung2',
+        audience: 'memo_app',
+      }
+    )
+    const errorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined)
+    const app = createApp()
+
+    try {
+      // When
+      const response = await request(app)
+        .post('/memo/user/checkLogin')
+        .set('Authorization', `Bearer ${token}`)
+
+      // Then
+      expect(response.status).toBe(401)
+      expect(response.body).toEqual({ error: '유효하지 않은 토큰입니다.' })
+      expect(errorSpy).toHaveBeenCalledTimes(1)
+      const loggedReason = errorSpy.mock.calls[0][1]
+      expect(loggedReason).toEqual(expect.any(String))
+      if (typeof loggedReason !== 'string') {
+        throw new Error('Expected the logged JWT error reason to be a string')
+      }
+      expect(loggedReason).toContain('TokenExpiredError: jwt expired')
+      expect(loggedReason.split('\n').length).toBeLessThanOrEqual(3)
+      expect(loggedReason.length).toBeLessThanOrEqual(1000)
+    } finally {
+      errorSpy.mockRestore()
+    }
+  })
+
   it('rejects invalid Google credential payloads', async () => {
     mockVerifyGoogleCredential.mockResolvedValueOnce(null)
 

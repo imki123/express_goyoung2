@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import axios from 'axios'
+import { logProcessError } from '../../processErrorLogger'
 
 export const catbookRouter = Router()
 
@@ -19,7 +20,7 @@ catbookRouter.get(urls.getAnimal, (req, res) => {
       res.send(result.data)
     })
     .catch((e) => {
-      console.error('error:', url, e?.message ? e.message : e)
+      logProcessError(`error: ${url}`, e)
       res.status(500).send('fail:' + url)
     })
 })
