@@ -5,6 +5,7 @@ const googleClient = new OAuth2Client()
 export type GoogleCredentialPayload = {
   email: string
   sub: string
+  email_verified: boolean
   name?: string
   picture?: string
 }
@@ -20,13 +21,14 @@ export const verifyGoogleCredential = async (
 
   const payload = ticket.getPayload()
 
-  if (!payload?.email || !payload.sub) {
+  if (!payload?.email || !payload.sub || payload.email_verified !== true) {
     return null
   }
 
   return {
     email: payload.email,
     sub: payload.sub,
+    email_verified: payload.email_verified,
     name: payload.name,
     picture: payload.picture,
   }
