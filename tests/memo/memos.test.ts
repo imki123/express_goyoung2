@@ -1,8 +1,11 @@
 import express from 'express'
 import type { Request, RequestHandler } from 'express'
 import request from 'supertest'
+import jwt from 'jsonwebtoken'
 import memosRouter from '../../src/router/memo/memos'
 import { MemoMemoModel } from '../../src/model/memoMemo'
+import { MemoUserModel } from '../../src/model/memoUser'
+import { sessionCheck } from '../../src/middleware/memoMiddleware'
 
 jest.mock('dayjs', () => () => ({
   add: () => ({
@@ -39,14 +42,38 @@ const memoUser: MemoUserContext = {
   locked: false,
 }
 
-const createApp = (withAuth = true) => {
+const canonicalMemoUser: MemoUserContext = {
+  email: 'canonical@example.com',
+  sub: 'canonical-sub',
+  name: 'Canonical User',
+  picture: 'https://example.com/canonical.png',
+  locked: false,
+}
+
+const authorizedSubAccount: MemoUserContext = {
+  email: 'sub-account@example.com',
+  sub: 'sub-account-sub',
+  name: 'Sub Account',
+  picture: 'https://example.com/sub-account.png',
+  locked: false,
+}
+
+const unrelatedMemoUser: MemoUserContext = {
+  email: 'unrelated@example.com',
+  sub: 'unrelated-sub',
+  name: 'Unrelated User',
+  picture: 'https://example.com/unrelated.png',
+  locked: false,
+}
+
+const createApp = (withAuth = true, authenticatedUser = memoUser) => {
   const app = express()
   app.use(express.json())
 
   if (withAuth) {
     const authMiddleware: RequestHandler = (req, _res, next) => {
       const memoReq = req as MemoRequest
-      memoReq.memoUser = memoUser
+      memoReq.memoUser = authenticatedUser
       next()
     }
 
@@ -57,9 +84,22 @@ const createApp = (withAuth = true) => {
   return app
 }
 
+const createSessionApp = () => {
+  const app = express()
+  app.use(express.json())
+  app.use(async (req, _res, next) => {
+    await sessionCheck(req)
+    next()
+  })
+  app.use('/memos', memosRouter)
+  return app
+}
+
 describe('memo router', () => {
   afterEach(() => {
     jest.restoreAllMocks()
+    delete process.env.MEMO_CANONICAL_OWNER_EMAIL
+    delete process.env.MEMO_AUTHORIZED_SUB_ACCOUNT_EMAIL
   })
 
   it('returns 401 when memo auth context is missing', async () => {
@@ -337,5 +377,151 @@ describe('memo router', () => {
 
     expect(response.status).toBe(404)
     expect(response.body).toEqual({ error: '메모를 찾을 수 없습니다.' })
+  })
+
+  it('uses the canonical owner records for authorized sub-account CRUD', async () => {
+    process.env.MEMO_CANONICAL_OWNER_EMAIL = canonicalMemoUser.email
+    process.env.MEMO_AUTHORIZED_SUB_ACCOUNT_EMAIL = authorizedSubAccount.email
+
+    jest
+      .spyOn(MemoUserModel, 'findOne')
+      .mockResolvedValue(canonicalMemoUser as never)
+    jest.spyOn(MemoMemoModel, 'find').mockResolvedValueOnce([])
+    jest.spyOn(MemoMemoModel, 'findOne').mockResolvedValueOnce({ memoId: 4 })
+    jest.spyOn(MemoMemoModel.prototype, 'save').mockResolvedValueOnce({
+      memoId: 5,
+      email: canonicalMemoUser.email,
+      sub: canonicalMemoUser.sub,
+      text: '',
+      createdAt: '2026-04-16T12:00:00',
+      editedAt: '2026-04-16T12:00:00',
+    } as never)
+    jest.spyOn(MemoMemoModel, 'findOneAndUpdate').mockResolvedValueOnce({
+      memoId: 3,
+      email: canonicalMemoUser.email,
+      sub: canonicalMemoUser.sub,
+      text: 'shared update',
+      createdAt: '2026-04-16T12:00:00',
+      editedAt: '2026-04-16T13:00:00',
+    } as never)
+    jest.spyOn(MemoMemoModel, 'findOneAndDelete').mockResolvedValueOnce({
+      memoId: 3,
+      email: canonicalMemoUser.email,
+      sub: canonicalMemoUser.sub,
+      text: 'shared update',
+      createdAt: '2026-04-16T12:00:00',
+      editedAt: '2026-04-16T13:00:00',
+    } as never)
+
+    const app = createApp(true, authorizedSubAccount)
+
+    await request(app).get('/memos')
+    await request(app).post('/memos')
+    await request(app).patch('/memos').send({
+      memo: {
+        memoId: 3,
+        text: 'shared update',
+        editedAt: '2026-04-16T13:00:00',
+      },
+    })
+    await request(app).delete('/memos/3')
+
+    expect(MemoMemoModel.find).toHaveBeenCalledWith(
+      { email: canonicalMemoUser.email, sub: canonicalMemoUser.sub },
+      null,
+      { sort: { memoId: -1 } }
+    )
+    expect(MemoMemoModel.findOne).toHaveBeenCalledWith(
+      { email: canonicalMemoUser.email, sub: canonicalMemoUser.sub },
+      { memoId: 1 },
+      { sort: { memoId: -1 } }
+    )
+    expect(MemoMemoModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { memoId: 3, email: canonicalMemoUser.email, sub: canonicalMemoUser.sub },
+      { text: 'shared update', editedAt: '2026-04-16T13:00:00' },
+      { new: true }
+    )
+    expect(MemoMemoModel.findOneAndDelete).toHaveBeenCalledWith({
+      memoId: 3,
+      email: canonicalMemoUser.email,
+      sub: canonicalMemoUser.sub,
+    })
+  })
+
+  it('keeps unrelated users isolated when sharing is enabled', async () => {
+    process.env.MEMO_CANONICAL_OWNER_EMAIL = canonicalMemoUser.email
+    process.env.MEMO_AUTHORIZED_SUB_ACCOUNT_EMAIL = authorizedSubAccount.email
+    jest.spyOn(MemoMemoModel, 'find').mockResolvedValueOnce([])
+    const findOneSpy = jest.spyOn(MemoUserModel, 'findOne')
+
+    const app = createApp(true, unrelatedMemoUser)
+    const response = await request(app).get('/memos')
+
+    expect(response.status).toBe(200)
+    expect(MemoMemoModel.find).toHaveBeenCalledWith(
+      { email: unrelatedMemoUser.email, sub: unrelatedMemoUser.sub },
+      null,
+      { sort: { memoId: -1 } }
+    )
+    expect(findOneSpy).not.toHaveBeenCalled()
+  })
+
+  it('uses canonical records for shared memo ID lists and individual memos', async () => {
+    process.env.MEMO_CANONICAL_OWNER_EMAIL = canonicalMemoUser.email
+    process.env.MEMO_AUTHORIZED_SUB_ACCOUNT_EMAIL = authorizedSubAccount.email
+    jest
+      .spyOn(MemoUserModel, 'findOne')
+      .mockResolvedValue(canonicalMemoUser as never)
+    jest
+      .spyOn(MemoMemoModel, 'find')
+      .mockResolvedValueOnce([{ memoId: 3 }] as never)
+    jest.spyOn(MemoMemoModel, 'findOne').mockResolvedValueOnce({
+      memoId: 3,
+      email: canonicalMemoUser.email,
+      sub: canonicalMemoUser.sub,
+    } as never)
+
+    const app = createApp(true, authorizedSubAccount)
+    const allIdsResponse = await request(app).get('/memos/allIds')
+    const memoResponse = await request(app).get('/memos/3')
+
+    expect(allIdsResponse.status).toBe(200)
+    expect(memoResponse.status).toBe(200)
+    expect(MemoMemoModel.find).toHaveBeenCalledWith(
+      { email: canonicalMemoUser.email, sub: canonicalMemoUser.sub },
+      'memoId',
+      { sort: { memoId: 1 } }
+    )
+    expect(MemoMemoModel.findOne).toHaveBeenCalledWith({
+      memoId: 3,
+      email: canonicalMemoUser.email,
+      sub: canonicalMemoUser.sub,
+    })
+  })
+
+  it('returns 403 after a valid JWT when shared ownership configuration is invalid', async () => {
+    process.env.GOOGLE_SECRET = 'test-secret'
+    process.env.MEMO_CANONICAL_OWNER_EMAIL = canonicalMemoUser.email
+    jest.spyOn(MemoUserModel, 'findOne').mockResolvedValueOnce(memoUser as never)
+    jest.spyOn(console, 'info').mockImplementation(() => undefined)
+    const token = jwt.sign(
+      {
+        email: memoUser.email,
+        sub: memoUser.sub,
+        name: memoUser.name,
+        picture: memoUser.picture,
+      },
+      process.env.GOOGLE_SECRET,
+      { issuer: 'express_goyoung2', audience: 'memo_app' }
+    )
+
+    const response = await request(createSessionApp())
+      .get('/memos')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(response.status).toBe(403)
+    expect(response.body).toEqual({
+      error: '메모 소유자 설정이 올바르지 않습니다.',
+    })
   })
 })

@@ -1,6 +1,7 @@
 import { Request } from 'express'
 import jwt from 'jsonwebtoken'
 import { MemoJwtPayload, MemoUserModel } from '../model/memoUser'
+import { resolveMemoOwnership } from '../router/memo/ownership'
 
 const shouldRefreshJwtToken = (decoded: jwt.JwtPayload): boolean => {
   if (!decoded.exp || !decoded.iat) return true
@@ -34,7 +35,6 @@ export const sessionCheck = async (req: Request) => {
           email: decoded.email,
           sub: decoded.sub,
         })
-
         const decodedUser: MemoJwtPayload & { locked: boolean } = {
           email: decoded.email,
           sub: decoded.sub,
@@ -42,6 +42,19 @@ export const sessionCheck = async (req: Request) => {
           picture: decoded.picture,
           locked: !!foundUser?.hashedLockPassword,
         }
+        const ownership = await resolveMemoOwnership({
+          email: decoded.email,
+          sub: decoded.sub,
+        })
+
+        if (!ownership) {
+          req.memoUser = decodedUser
+          req.memoOwnershipConfigurationError = true
+          return
+        }
+
+        const lockOwner = ownership.canonicalUser || foundUser
+        decodedUser.locked = !!lockOwner?.hashedLockPassword
 
         req.memoUser = decodedUser
 

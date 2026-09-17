@@ -1,10 +1,9 @@
 import { MemoMemoModel } from '../../model/memoMemo'
 import { Request, Response, Router } from 'express'
 import dayjs from 'dayjs'
+import { type MemoOwner, resolveMemoOwnership } from './ownership'
 
 const memosRouter = Router()
-
-type MemoUserContext = NonNullable<Request['memoUser']>
 
 type MemoItemParams = {
   memoId: string
@@ -26,6 +25,14 @@ const sendBadRequest = (res: Response, message: string) =>
 
 const sendNotFound = (res: Response, message: string) =>
   res.status(404).send({ error: message })
+
+const sendOwnershipError = (res: Response) =>
+  res.status(403).send({ error: '메모 소유자 설정이 올바르지 않습니다.' })
+
+const hasOwnershipConfigurationError = (req: {
+  memoOwnershipConfigurationError?: true
+}) =>
+  req.memoOwnershipConfigurationError === true
 
 const isDuplicateMemoIdError = (error: unknown) => {
   if (typeof error !== 'object' || error === null) return false
@@ -56,19 +63,19 @@ const getNextMemoId = async (email: string, sub: string) => {
   return (lastMemo?.memoId || 0) + 1
 }
 
-const createMemoForUser = async (authenticatedUser: MemoUserContext) => {
+const createMemoForUser = async (owner: MemoOwner) => {
   const maxAttempts = 5
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const currentTime = getCurrentTime()
     const memoId = await getNextMemoId(
-      authenticatedUser.email,
-      authenticatedUser.sub
+      owner.email,
+      owner.sub
     )
     const newMemo = new MemoMemoModel({
       memoId,
-      email: authenticatedUser.email,
-      sub: authenticatedUser.sub,
+      email: owner.email,
+      sub: owner.sub,
       text: '',
       createdAt: currentTime,
       editedAt: currentTime,
@@ -94,12 +101,17 @@ const urls = {
 
 memosRouter.get(urls.allIds, async (req: Request, res: Response) => {
   try {
+    if (hasOwnershipConfigurationError(req)) return sendOwnershipError(res)
     const authenticatedUser = req.memoUser
     if (!authenticatedUser) {
       return sendAuthError(res)
     }
 
-    const { email, sub } = authenticatedUser
+    const ownership = await resolveMemoOwnership(authenticatedUser)
+    if (!ownership) {
+      return sendOwnershipError(res)
+    }
+    const { email, sub } = ownership.owner
     const allIds = await MemoMemoModel.find({ email, sub }, 'memoId', {
       sort: { memoId: 1 }, // 오름차순
     })
@@ -112,11 +124,16 @@ memosRouter.get(urls.allIds, async (req: Request, res: Response) => {
 // email, sub로 목록 전체 불러오기
 memosRouter.get(urls.root, async (req: Request, res: Response) => {
   try {
+    if (hasOwnershipConfigurationError(req)) return sendOwnershipError(res)
     const authenticatedUser = req.memoUser
     if (!authenticatedUser) {
       return sendAuthError(res)
     }
-    const { email, sub } = authenticatedUser
+    const ownership = await resolveMemoOwnership(authenticatedUser)
+    if (!ownership) {
+      return sendOwnershipError(res)
+    }
+    const { email, sub } = ownership.owner
     const userMemos = await MemoMemoModel.find({ email, sub }, null, {
       sort: { memoId: -1 }, // 내림차순
     })
@@ -130,11 +147,16 @@ memosRouter.get(
   urls.memoId,
   async (req: Request<MemoItemParams>, res: Response) => {
     try {
+      if (hasOwnershipConfigurationError(req)) return sendOwnershipError(res)
       const authenticatedUser = req.memoUser
       if (!authenticatedUser) {
         return sendAuthError(res)
       }
-      const { email, sub } = authenticatedUser
+      const ownership = await resolveMemoOwnership(authenticatedUser)
+      if (!ownership) {
+        return sendOwnershipError(res)
+      }
+      const { email, sub } = ownership.owner
       const memoId = parseMemoId(req.params.memoId)
 
       if (memoId === null) {
@@ -156,11 +178,16 @@ memosRouter.get(
 // 메모 추가
 memosRouter.post(urls.root, async (req: Request, res: Response) => {
   try {
+    if (hasOwnershipConfigurationError(req)) return sendOwnershipError(res)
     const authenticatedUser = req.memoUser
     if (!authenticatedUser) {
       return sendAuthError(res)
     }
-    const savedMemo = await createMemoForUser(authenticatedUser)
+    const ownership = await resolveMemoOwnership(authenticatedUser)
+    if (!ownership) {
+      return sendOwnershipError(res)
+    }
+    const savedMemo = await createMemoForUser(ownership.owner)
     return res.status(201).send(savedMemo)
   } catch (err) {
     return res.status(500).send(err)
@@ -172,11 +199,16 @@ memosRouter.patch(
   urls.root,
   async (req: Request<unknown, unknown, MemoPatchBody>, res: Response) => {
     try {
+      if (hasOwnershipConfigurationError(req)) return sendOwnershipError(res)
       const authenticatedUser = req.memoUser
       if (!authenticatedUser) {
         return sendAuthError(res)
       }
-      const { email, sub } = authenticatedUser
+      const ownership = await resolveMemoOwnership(authenticatedUser)
+      if (!ownership) {
+        return sendOwnershipError(res)
+      }
+      const { email, sub } = ownership.owner
       const { memo } = req.body
 
       if (!memo) {
@@ -217,11 +249,16 @@ memosRouter.delete(
   urls.memoId,
   async (req: Request<MemoItemParams>, res: Response) => {
     try {
+      if (hasOwnershipConfigurationError(req)) return sendOwnershipError(res)
       const authenticatedUser = req.memoUser
       if (!authenticatedUser) {
         return sendAuthError(res)
       }
-      const { email, sub } = authenticatedUser
+      const ownership = await resolveMemoOwnership(authenticatedUser)
+      if (!ownership) {
+        return sendOwnershipError(res)
+      }
+      const { email, sub } = ownership.owner
       const memoId = parseMemoId(req.params.memoId)
 
       if (memoId === null) {
