@@ -34,6 +34,22 @@ const memoUser: MemoUserContext = {
   locked: false,
 }
 
+const canonicalMemoUser: MemoUserContext = {
+  email: 'canonical@example.com',
+  sub: 'canonical-sub',
+  name: 'Canonical User',
+  picture: 'https://example.com/canonical.png',
+  locked: false,
+}
+
+const authorizedSubAccount: MemoUserContext = {
+  email: 'sub-account@example.com',
+  sub: 'sub-account-sub',
+  name: 'Sub Account',
+  picture: 'https://example.com/sub-account.png',
+  locked: false,
+}
+
 const createUserDoc = (
   overrides: Partial<MemoUserContext> & {
     hashedLockPassword?: string
@@ -47,14 +63,14 @@ const createUserDoc = (
   ...overrides,
 })
 
-const createApp = (withAuth = false) => {
+const createApp = (withAuth = false, authenticatedUser = memoUser) => {
   const app = express()
   app.use(express.json())
 
   if (withAuth) {
     const authMiddleware: RequestHandler = (req, _res, next) => {
       const memoReq = req as MemoRequest
-      memoReq.memoUser = memoUser
+      memoReq.memoUser = authenticatedUser
       next()
     }
 
@@ -74,12 +90,15 @@ describe('memo user login', () => {
   afterEach(() => {
     jest.restoreAllMocks()
     mockVerifyGoogleCredential.mockReset()
+    delete process.env.MEMO_CANONICAL_OWNER_EMAIL
+    delete process.env.MEMO_AUTHORIZED_SUB_ACCOUNT_EMAIL
   })
 
   it('verifies Google credential and returns a server token', async () => {
     const googlePayload = {
       email: memoUser.email,
       sub: memoUser.sub,
+      email_verified: true,
       name: memoUser.name,
       picture: memoUser.picture,
     }
@@ -123,6 +142,7 @@ describe('memo user login', () => {
     mockVerifyGoogleCredential.mockResolvedValueOnce({
       email: memoUser.email,
       sub: memoUser.sub,
+      email_verified: true,
       name: memoUser.name,
       picture: memoUser.picture,
     })
@@ -328,5 +348,89 @@ describe('memo user login', () => {
 
     expect(response.status).toBe(401)
     expect(response.body).toEqual({ error: '인증이 필요합니다.' })
+  })
+
+  it('shares canonical lock status and password with the authorized sub-account', async () => {
+    process.env.MEMO_CANONICAL_OWNER_EMAIL = canonicalMemoUser.email
+    process.env.MEMO_AUTHORIZED_SUB_ACCOUNT_EMAIL = authorizedSubAccount.email
+    const canonicalUser = {
+      ...createUserDoc({
+        email: canonicalMemoUser.email,
+        sub: canonicalMemoUser.sub,
+        hashedLockPassword: 'shared-lock-hash',
+      }),
+      save: jest.fn().mockResolvedValue(undefined),
+    }
+    const authorizedSubUser = createUserDoc({
+      email: authorizedSubAccount.email,
+      sub: authorizedSubAccount.sub,
+      name: authorizedSubAccount.name,
+      picture: authorizedSubAccount.picture,
+    })
+
+    mockVerifyGoogleCredential.mockResolvedValueOnce({
+      email: authorizedSubAccount.email,
+      sub: authorizedSubAccount.sub,
+      email_verified: true,
+      name: authorizedSubAccount.name,
+      picture: authorizedSubAccount.picture,
+    })
+    jest
+      .spyOn(MemoUserModel, 'findOne')
+      .mockResolvedValueOnce(canonicalUser as never)
+      .mockResolvedValueOnce(authorizedSubUser as never)
+      .mockResolvedValueOnce(authorizedSubUser as never)
+      .mockResolvedValue(canonicalUser as never)
+    jest.spyOn(console, 'info').mockImplementation(() => undefined)
+    jest.spyOn(bcrypt, 'hash').mockResolvedValueOnce('new-shared-lock-hash' as never)
+    jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never)
+
+    const loginApp = createApp()
+    const loginResponse = await request(loginApp)
+      .post('/memo/user/login')
+      .send({ credential: 'google-id-token' })
+
+    const token = jwt.sign(
+      {
+        email: authorizedSubAccount.email,
+        sub: authorizedSubAccount.sub,
+        name: authorizedSubAccount.name,
+        picture: authorizedSubAccount.picture,
+      },
+      process.env.GOOGLE_SECRET || '',
+      {
+        expiresIn: '60d',
+        issuer: 'express_goyoung2',
+        audience: 'memo_app',
+      }
+    )
+    const checkLoginResponse = await request(loginApp)
+      .post('/memo/user/checkLogin')
+      .set('Authorization', `Bearer ${token}`)
+
+    const lockApp = createApp(true, authorizedSubAccount)
+    const setLockResponse = await request(lockApp)
+      .post('/memo/user/setLock')
+      .send({ password: '1234' })
+    const unlockResponse = await request(lockApp)
+      .post('/memo/user/unlock')
+      .send({ password: '1234' })
+    const removeLockResponse = await request(lockApp)
+      .post('/memo/user/removeLock')
+      .send({ password: '1234' })
+
+    expect(loginResponse.status).toBe(200)
+    expect(loginResponse.body.email).toBe(authorizedSubAccount.email)
+    expect(loginResponse.body.sub).toBe(authorizedSubAccount.sub)
+    expect(loginResponse.body.locked).toBe(true)
+    expect(checkLoginResponse.status).toBe(200)
+    expect(checkLoginResponse.body.email).toBe(authorizedSubAccount.email)
+    expect(checkLoginResponse.body.locked).toBe(true)
+    expect(setLockResponse.status).toBe(200)
+    expect(unlockResponse.status).toBe(200)
+    expect(removeLockResponse.status).toBe(200)
+    expect(canonicalUser.hashedLockPassword).toBeUndefined()
+    expect(bcrypt.compare).toHaveBeenCalledWith('1234', 'new-shared-lock-hash')
+    expect(canonicalUser.save).toHaveBeenCalledTimes(2)
   })
 })
