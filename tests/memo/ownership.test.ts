@@ -7,6 +7,10 @@ const authorizedSubAccount = {
   email: authorizedSubAccountEmail,
   sub: 'sub-account-sub',
 }
+const secondAuthorizedSubAccount = {
+  email: 'second-sub-account@example.com',
+  sub: 'second-sub-account-sub',
+}
 
 const setSharingConfig = (
   configuredCanonicalEmail: string | undefined,
@@ -37,6 +41,7 @@ describe('resolveMemoOwnership', () => {
     [undefined, authorizedSubAccountEmail],
     ['', authorizedSubAccountEmail],
     [canonicalEmail, ''],
+    [canonicalEmail, ' , , '],
     [canonicalEmail, canonicalEmail],
   ])(
     'fails closed for invalid sharing configuration',
@@ -97,6 +102,29 @@ describe('resolveMemoOwnership', () => {
     } as never)
 
     const ownership = await resolveMemoOwnership(authorizedSubAccount)
+
+    expect(ownership?.owner).toEqual({
+      email: canonicalEmail,
+      sub: 'persisted-canonical-sub',
+    })
+    expect(MemoUserModel.findOne).toHaveBeenCalledWith({
+      email: canonicalEmail,
+    })
+  })
+
+  it('resolves a whitespace-padded second sub-account email to the canonical user', async () => {
+    setSharingConfig(
+      canonicalEmail,
+      `${authorizedSubAccountEmail},  ${secondAuthorizedSubAccount.email}  ,`
+    )
+    jest.spyOn(MemoUserModel, 'findOne').mockResolvedValueOnce(
+      new MemoUserModel({
+        email: canonicalEmail,
+        sub: 'persisted-canonical-sub',
+      })
+    )
+
+    const ownership = await resolveMemoOwnership(secondAuthorizedSubAccount)
 
     expect(ownership?.owner).toEqual({
       email: canonicalEmail,

@@ -20,27 +20,27 @@ const getMemoSharingEmails = () => {
   const canonicalOwnerEmail = normalizeSharingEmail(
     process.env.MEMO_CANONICAL_OWNER_EMAIL
   )
-  const authorizedSubAccountEmail = normalizeSharingEmail(
+  const authorizedSubAccountEmails =
     process.env.MEMO_AUTHORIZED_SUB_ACCOUNT_EMAIL
-  )
+      ?.split(',')
+      .map((email) => normalizeSharingEmail(email))
+      .filter((email): email is string => Boolean(email)) ?? []
 
   if (
-    (canonicalOwnerEmail === undefined &&
-      authorizedSubAccountEmail === undefined) ||
-    (canonicalOwnerEmail === '' && authorizedSubAccountEmail === '')
+    !canonicalOwnerEmail && authorizedSubAccountEmails.length === 0
   ) {
     return null
   }
 
   if (
     !canonicalOwnerEmail ||
-    !authorizedSubAccountEmail ||
-    canonicalOwnerEmail === authorizedSubAccountEmail
+    authorizedSubAccountEmails.length === 0 ||
+    authorizedSubAccountEmails.includes(canonicalOwnerEmail)
   ) {
     return undefined
   }
 
-  return { canonicalOwnerEmail, authorizedSubAccountEmail }
+  return { canonicalOwnerEmail, authorizedSubAccountEmails }
 }
 
 export const resolveMemoOwnership = async (
@@ -58,7 +58,7 @@ export const resolveMemoOwnership = async (
 
   if (
     authenticatedUser.email !== sharingEmails.canonicalOwnerEmail &&
-    authenticatedUser.email !== sharingEmails.authorizedSubAccountEmail
+    !sharingEmails.authorizedSubAccountEmails.includes(authenticatedUser.email)
   ) {
     return { owner: authenticatedUser, canonicalUser: null }
   }
